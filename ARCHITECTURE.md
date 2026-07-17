@@ -285,7 +285,19 @@ Two rules keep this pattern honest:
 1. **`send` never does async work directly.** It wraps it in `Task { }` and returns
    immediately, so the View's action always stays synchronous and non-blocking.
 2. **Only the Store mutates `state`.** Views never write to `state` fields — they
-   only read them and call `send`.
+   only read them and call `send`. For form fields, `Store.binding(_:send:)` builds
+   a `Binding` whose setter goes through an Intent, so even two-way SwiftUI
+   controls can't mutate state behind the store's back:
+
+   ```swift
+   TextField("Name", text: store.binding(\.name, send: AddUserIntent.nameChanged))
+   ```
+
+Views depend on the contract, not the class: each one stores
+`any Store<State, Intent>` (the protocol has primary associated types, so no
+type-erasing wrapper is needed). That is what lets every screen have a `#Preview`
+backed by `PreviewStore` — a generic stub with fixed state and no-op intents —
+without wiring use cases or a repository behind it.
 
 ## 6. Navigation is a side effect, not state
 
@@ -301,9 +313,8 @@ case):
 ```swift
 // Sources/Presentation/Core/AppRouter.swift
 @Observable
-@MainActor
 public final class AppRouter {
-    public enum Route: Hashable { case userDetail(User.ID) }
+    public enum Route: Hashable { case userDetail(User) }
     public enum Sheet: Identifiable { case addUser; ... }
 
     public var path: [Route] = []
@@ -323,7 +334,7 @@ NavigationStack(path: $router.path) {
     content
         .navigationDestination(for: AppRouter.Route.self) { route in
             switch route {
-            case .userDetail(let id): UserDetailView(store: makeDetailStore(id))
+            case .userDetail(let user): UserDetailView(store: makeDetailStore(user))
             }
         }
         .sheet(item: $router.presentedSheet) { sheet in

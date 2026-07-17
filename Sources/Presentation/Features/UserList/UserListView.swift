@@ -4,22 +4,22 @@ import Domain
 
 public struct UserListView: View {
     @Bindable var router: AppRouter
-    // `@State` makes the view own the store: parent body re-evaluations
-    // re-run the factory and pass a fresh instance here, but SwiftUI keeps
-    // the one from the first render.
-    @State private var store: UserListStore
+    // The existential (`any Store<State, Intent>`) decouples the view from the
+    // concrete store class: previews and tests can back the same view with a
+    // stub. `@State` makes the view own the instance across parent re-renders.
+    @State private var store: any Store<UserListState, UserListIntent>
     // The Model half of the MVI loop: `@Query` observes SwiftData directly,
     // so any change to any `User`, made anywhere in the app, updates the list
     // automatically. Intents remain the only way the view talks to the store.
     @Query(sort: \User.name) private var users: [User]
-    let makeDetailStore: (User) -> UserDetailStore
-    let makeAddUserStore: () -> AddUserStore
+    let makeDetailStore: (User) -> any Store<UserDetailState, UserDetailIntent>
+    let makeAddUserStore: () -> any Store<AddUserState, AddUserIntent>
 
     public init(
         router: AppRouter,
-        store: UserListStore,
-        makeDetailStore: @escaping (User) -> UserDetailStore,
-        makeAddUserStore: @escaping () -> AddUserStore
+        store: any Store<UserListState, UserListIntent>,
+        makeDetailStore: @escaping (User) -> any Store<UserDetailState, UserDetailIntent>,
+        makeAddUserStore: @escaping () -> any Store<AddUserState, AddUserIntent>
     ) {
         self.router = router
         _store = State(initialValue: store)
@@ -92,4 +92,25 @@ private struct UserRow: View {
             }
         }
     }
+}
+
+#Preview {
+    let container = try! ModelContainer(
+        for: User.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    for user in [
+        User(name: "Ada Lovelace", email: "ada@example.com", isFavorite: true),
+        User(name: "Alan Turing", email: "alan@example.com"),
+        User(name: "Grace Hopper", email: "grace@example.com")
+    ] {
+        container.mainContext.insert(user)
+    }
+    return UserListView(
+        router: AppRouter(),
+        store: PreviewStore(state: UserListState()),
+        makeDetailStore: { user in PreviewStore(state: UserDetailState(user: user)) },
+        makeAddUserStore: { PreviewStore(state: AddUserState()) }
+    )
+    .modelContainer(container)
 }

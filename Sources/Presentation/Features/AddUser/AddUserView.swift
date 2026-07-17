@@ -1,26 +1,20 @@
 import SwiftUI
 
 public struct AddUserView: View {
-    // `@State` makes the view own the store: parent body re-evaluations
-    // re-run the factory and pass a fresh instance here, but SwiftUI keeps
-    // the one from the first render, preserving typed form state.
-    @State private var store: AddUserStore
+    // The existential (`any Store<State, Intent>`) decouples the view from the
+    // concrete store class: previews and tests can back the same view with a
+    // stub. `@State` makes the view own the instance across parent re-renders.
+    @State private var store: any Store<AddUserState, AddUserIntent>
 
-    public init(store: AddUserStore) {
+    public init(store: any Store<AddUserState, AddUserIntent>) {
         _store = State(initialValue: store)
     }
 
     public var body: some View {
         NavigationStack {
             Form {
-                TextField("Name", text: Binding(
-                    get: { store.state.name },
-                    set: { store.send(.nameChanged($0)) }
-                ))
-                TextField("Email", text: Binding(
-                    get: { store.state.email },
-                    set: { store.send(.emailChanged($0)) }
-                ))
+                TextField("Name", text: store.binding(\.name, send: AddUserIntent.nameChanged))
+                TextField("Email", text: store.binding(\.email, send: AddUserIntent.emailChanged))
                 #if os(iOS)
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
@@ -45,4 +39,11 @@ public struct AddUserView: View {
             }
         }
     }
+}
+
+#Preview {
+    var state = AddUserState()
+    state.name = "Ada Lovelace"
+    state.email = "ada@example.com"
+    return AddUserView(store: PreviewStore(state: state))
 }

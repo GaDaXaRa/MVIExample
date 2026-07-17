@@ -1,4 +1,5 @@
 import Observation
+import SwiftUI
 
 /// The MVI contract every feature implements:
 /// - `State` (Model): a single struct describing everything the view needs to render.
@@ -15,4 +16,21 @@ public protocol Store<State, Intent>: AnyObject, Observable {
 
     var state: State { get }
     func send(_ intent: Intent)
+}
+
+extension Store {
+    /// Two-way binding that routes every write through an Intent, so form
+    /// fields can't mutate state behind the store's back:
+    ///
+    ///     TextField("Name", text: store.binding(\.name, send: AddUserIntent.nameChanged))
+    public func binding<Value>(
+        _ keyPath: KeyPath<State, Value>,
+        send intent: @escaping (Value) -> Intent
+    ) -> Binding<Value> {
+        Binding {
+            self.state[keyPath: keyPath]
+        } set: { newValue in
+            self.send(intent(newValue))
+        }
+    }
 }

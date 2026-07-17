@@ -1,12 +1,13 @@
 import SwiftUI
+import Domain
 
 public struct UserDetailView: View {
-    // `@State` makes the view own the store: parent body re-evaluations
-    // re-run the factory and pass a fresh instance here, but SwiftUI keeps
-    // the one from the first render.
-    @State private var store: UserDetailStore
+    // The existential (`any Store<State, Intent>`) decouples the view from the
+    // concrete store class: previews and tests can back the same view with a
+    // stub. `@State` makes the view own the instance across parent re-renders.
+    @State private var store: any Store<UserDetailState, UserDetailIntent>
 
-    public init(store: UserDetailStore) {
+    public init(store: any Store<UserDetailState, UserDetailIntent>) {
         _store = State(initialValue: store)
     }
 
@@ -27,5 +28,13 @@ public struct UserDetailView: View {
             }
         }
         .navigationTitle(store.state.user.name)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        UserDetailView(store: PreviewStore(state: UserDetailState(
+            user: User(name: "Ada Lovelace", email: "ada@example.com", isFavorite: true)
+        )))
     }
 }
