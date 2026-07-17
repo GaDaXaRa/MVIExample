@@ -6,7 +6,6 @@ import Presentation
 /// The only type in the whole app allowed to import every layer. It is where
 /// abstract Domain protocols get bound to concrete Data implementations and
 /// handed to Presentation as opaque `some UseCase` values.
-@MainActor
 struct CompositionRoot {
     /// Exposed so the App can attach it with `.modelContainer`: the views'
     /// `@Query` and the repository must share the same container.

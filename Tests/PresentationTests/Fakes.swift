@@ -4,7 +4,6 @@ import Domain
 // one operation's result, so a small main-actor class is enough — no need to
 // go through a full fake repository as the Domain/Data tests do.
 
-@MainActor
 final class FakeRefreshUsersUseCase: RefreshUsersUseCase {
     var errorToThrow: Error?
     private(set) var calls = 0
@@ -15,7 +14,6 @@ final class FakeRefreshUsersUseCase: RefreshUsersUseCase {
     }
 }
 
-@MainActor
 final class FakeToggleFavoriteUseCase: ToggleFavoriteUseCase {
     var errorToThrow: Error?
     private(set) var calls: [(user: User, isFavorite: Bool)] = []
@@ -27,7 +25,6 @@ final class FakeToggleFavoriteUseCase: ToggleFavoriteUseCase {
     }
 }
 
-@MainActor
 final class FakeAddUserUseCase: AddUserUseCase {
     var userToReturn: User?
     var errorToThrow: Error?

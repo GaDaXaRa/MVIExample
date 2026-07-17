@@ -1,8 +1,10 @@
 import Foundation
 
 /// Abstraction over "the network". Kept as a protocol so tests can swap in a
-/// fake without touching the real actor below.
-protocol RemoteUserDataSource: Sendable {
+/// fake without touching the real actor below. `nonisolated` opts out of the
+/// module's MainActor default: this is the one real concurrency boundary in
+/// the app, implemented by actors and crossed with Sendable DTOs.
+nonisolated protocol RemoteUserDataSource: Sendable {
     func fetchUsers() async throws -> [UserDTO]
     func createUser(name: String, email: String) async throws -> UserDTO
 }

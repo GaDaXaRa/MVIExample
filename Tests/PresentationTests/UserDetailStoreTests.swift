@@ -3,7 +3,6 @@ import Domain
 @testable import Presentation
 
 @Suite("UserDetailStore")
-@MainActor
 struct UserDetailStoreTests {
     @Test("toggling favorite forwards the flipped value to the use case")
     func toggleFavoriteForwardsFlippedValue() {

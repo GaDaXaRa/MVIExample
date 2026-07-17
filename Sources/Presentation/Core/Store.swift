@@ -8,7 +8,7 @@ import Observation
 /// State flows one way: View -> Intent -> Store -> State -> View.
 /// `Observable` (not `ObservableObject`/`@Published`) is what lets SwiftUI observe
 /// only the exact properties a view reads, with no boilerplate.
-@MainActor
+/// Main-actor-bound via the module's default isolation — no annotation needed.
 public protocol Store<State, Intent>: AnyObject, Observable {
     associatedtype State
     associatedtype Intent

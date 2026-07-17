@@ -24,7 +24,6 @@ public enum UserDetailIntent {
 // MARK: - Store
 
 @Observable
-@MainActor
 public final class UserDetailStore: Store {
     public private(set) var state: UserDetailState
 

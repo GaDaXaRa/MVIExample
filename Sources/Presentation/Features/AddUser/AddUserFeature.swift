@@ -24,7 +24,6 @@ public enum AddUserIntent {
 // MARK: - Store
 
 @Observable
-@MainActor
 public final class AddUserStore: Store {
     public private(set) var state = AddUserState()
 

@@ -1,8 +1,7 @@
 import Domain
 
-/// A test double for `UserRepository`. `@MainActor` like the protocol itself:
+/// A test double for `UserRepository`. Main-actor like the protocol itself:
 /// `@Model` objects are main-actor-bound, so the contract is too.
-@MainActor
 final class FakeUserRepository: UserRepository {
     var errorToThrow: Error?
     private(set) var refreshCalls = 0

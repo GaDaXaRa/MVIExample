@@ -14,7 +14,6 @@ public enum UserValidationError: Error, LocalizedError, Sendable, Equatable {
     }
 }
 
-@MainActor
 public protocol AddUserUseCase {
     func execute(name: String, email: String) async throws -> User
 }

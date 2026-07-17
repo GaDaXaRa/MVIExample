@@ -1,4 +1,3 @@
-@MainActor
 public protocol ToggleFavoriteUseCase {
     func execute(user: User, isFavorite: Bool) throws
 }

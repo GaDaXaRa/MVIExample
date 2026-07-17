@@ -26,7 +26,6 @@ public enum UserListIntent {
 // MARK: - Store
 
 @Observable
-@MainActor
 public final class UserListStore: Store {
     public private(set) var state = UserListState()
 

@@ -6,7 +6,6 @@ import Domain
 /// feature's `State` and lives in its own observable object instead. Intent
 /// handlers call into it directly when a navigation Intent arrives.
 @Observable
-@MainActor
 public final class AppRouter {
     public enum Route: Hashable {
         // The @Model object itself is the payload: the detail screen receives

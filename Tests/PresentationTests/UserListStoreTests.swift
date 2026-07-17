@@ -4,7 +4,6 @@ import Domain
 @testable import Presentation
 
 @Suite("UserListStore")
-@MainActor
 struct UserListStoreTests {
     @Test("onAppear triggers a remote refresh")
     func onAppearTriggersRefresh() async throws {
@@ -58,7 +57,6 @@ struct UserListStoreTests {
 
 /// Stores kick off work with `Task { ... }` from a synchronous `send`, so tests
 /// poll briefly instead of assuming the update already landed by the next line.
-@MainActor
 func waitUntil(timeout: Duration = .seconds(1), _ condition: () -> Bool) async throws {
     let deadline = ContinuousClock.now + timeout
     while !condition(), ContinuousClock.now < deadline {

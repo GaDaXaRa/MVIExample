@@ -8,7 +8,6 @@ import Domain
 // intermittently crashes (SIGSEGV) when containers for the same schema are
 // created concurrently. Serializing only this suite keeps the rest parallel.
 @Suite("DefaultUserRepository", .serialized)
-@MainActor
 struct DefaultUserRepositoryTests {
     /// Fresh, in-memory SwiftData stack per test: same schema as production,
     /// no disk state shared between tests. Tests must keep the returned

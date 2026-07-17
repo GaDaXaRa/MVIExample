@@ -1,8 +1,10 @@
 import Foundation
 
-/// The wire/storage representation. Kept separate from `User` so that a change
-/// in the API or storage format never ripples into the Domain entity.
-struct UserDTO: Codable, Sendable {
+/// The wire representation. Kept separate from `User` so that a change in the
+/// API format never ripples into the Domain entity. `nonisolated` opts out of
+/// the module's MainActor default: DTOs are plain values built inside the
+/// remote actor and carried across the concurrency boundary.
+nonisolated struct UserDTO: Codable, Sendable {
     let id: UUID
     let name: String
     let email: String

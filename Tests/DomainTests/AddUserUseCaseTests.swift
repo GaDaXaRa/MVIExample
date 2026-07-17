@@ -2,7 +2,6 @@ import Testing
 @testable import Domain
 
 @Suite("AddUserUseCase")
-@MainActor
 struct AddUserUseCaseTests {
     @Test("rejects an empty name")
     func rejectsEmptyName() async throws {

@@ -1,6 +1,5 @@
 /// A use case is a single, named business operation. Stores call use cases,
 /// never repositories directly, so business rules stay out of the Presentation layer.
-@MainActor
 public protocol RefreshUsersUseCase {
     func execute() async throws
 }

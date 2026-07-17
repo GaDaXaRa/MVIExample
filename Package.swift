@@ -1,5 +1,11 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 import PackageDescription
+
+// Default isolation flipped to MainActor (SE-0466, "Approachable Concurrency"):
+// in an app, almost everything — views, stores, navigation, @Model entities —
+// lives on the main actor, so that is the default and concurrency is opt-in.
+// Anything that must run elsewhere says so explicitly (`actor`, `nonisolated`).
+let mainActorByDefault: [SwiftSetting] = [.defaultIsolation(MainActor.self)]
 
 let package = Package(
     name: "MVIExample",
@@ -11,20 +17,20 @@ let package = Package(
     ],
     targets: [
         // MARK: - Domain (entities, use cases, repository protocols). No dependencies: the innermost circle.
-        .target(name: "Domain"),
+        .target(name: "Domain", swiftSettings: mainActorByDefault),
 
         // MARK: - Data (DTOs, data sources, repository implementations). Depends only on Domain.
-        .target(name: "Data", dependencies: ["Domain"]),
+        .target(name: "Data", dependencies: ["Domain"], swiftSettings: mainActorByDefault),
 
         // MARK: - Presentation (MVI: State, Intent, Store + SwiftUI views). Depends only on Domain, never on Data.
-        .target(name: "Presentation", dependencies: ["Domain"]),
+        .target(name: "Presentation", dependencies: ["Domain"], swiftSettings: mainActorByDefault),
 
         // The App composition root (Sources/App) is built by the native Xcode target
         // generated from project.yml, not by this package — an SPM executableTarget
         // can't produce an installable, simulator-runnable .app bundle. See project.yml.
 
-        .testTarget(name: "DomainTests", dependencies: ["Domain"]),
-        .testTarget(name: "DataTests", dependencies: ["Data", "Domain"]),
-        .testTarget(name: "PresentationTests", dependencies: ["Presentation", "Domain"])
+        .testTarget(name: "DomainTests", dependencies: ["Domain"], swiftSettings: mainActorByDefault),
+        .testTarget(name: "DataTests", dependencies: ["Data", "Domain"], swiftSettings: mainActorByDefault),
+        .testTarget(name: "PresentationTests", dependencies: ["Presentation", "Domain"], swiftSettings: mainActorByDefault)
     ]
 )

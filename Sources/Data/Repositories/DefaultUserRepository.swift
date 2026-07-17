@@ -6,7 +6,6 @@ import Domain
 /// main context plus a remote source. There is no separate cache type any
 /// more: the `ModelContext` *is* the local storage, and `@Query` on the view
 /// side replaces hand-rolled change broadcasting.
-@MainActor
 public final class DefaultUserRepository: UserRepository {
     private let context: ModelContext
     private let remote: RemoteUserDataSource
@@ -55,6 +54,6 @@ public final class DefaultUserRepository: UserRepository {
 
 private extension UserDTO {
     var toDomain: User {
-        User(id: id, name: name, email: email)
+        User(id: id, name: name, email: email, isFavorite: isFavorite)
     }
 }

@@ -4,7 +4,6 @@ import Domain
 @testable import Presentation
 
 @Suite("AddUserStore")
-@MainActor
 struct AddUserStoreTests {
     @Test("editing name and email updates the state")
     func editingFieldsUpdatesState() {

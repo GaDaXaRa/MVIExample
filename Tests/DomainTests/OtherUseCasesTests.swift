@@ -3,7 +3,6 @@ import Foundation
 @testable import Domain
 
 @Suite("RefreshUsersUseCase")
-@MainActor
 struct RefreshUsersUseCaseTests {
     @Test("forwards the refresh to the repository")
     func forwardsRefresh() async throws {
@@ -17,7 +16,6 @@ struct RefreshUsersUseCaseTests {
 }
 
 @Suite("ToggleFavoriteUseCase")
-@MainActor
 struct ToggleFavoriteUseCaseTests {
     @Test("forwards the new favorite value to the repository")
     func forwardsFavoriteValue() throws {
