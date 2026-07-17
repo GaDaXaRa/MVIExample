@@ -16,6 +16,10 @@ public final class User {
     public var name: String
     public var email: String
     public var isFavorite: Bool
+    /// Self-referential to-one relationship. Being a `@Model` property, any
+    /// screen showing this user re-renders when the relation changes — the
+    /// modal picker that sets it needs no callback to the detail screen.
+    public var related: User?
 
     public init(id: UUID = UUID(), name: String, email: String, isFavorite: Bool = false) {
         self.id = id

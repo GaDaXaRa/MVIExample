@@ -54,6 +54,52 @@ struct UserFlowsTests {
         #expect(parent.presentedCover == nil)
     }
 
+    @Test("RelatedUserFlow presents picker and related detail as sheets")
+    func relatedUserFlowRoutes() {
+        let router = AppRouter()
+        let sut = RelatedUserFlow(router: router)
+        let user = User(name: "Ada Lovelace", email: "ada@example.com")
+        let related = User(name: "Alan Turing", email: "alan@example.com")
+
+        sut.didRequestRelatedPicker(for: user)
+        #expect(router.presentedSheet == AnyRoute(RelatedUserPickerRoute(target: user)))
+
+        sut.didSelectRelated(related)
+        #expect(router.presentedSheet == AnyRoute(UserDetailRoute(user: related)))
+    }
+
+    @Test("PickRelatedUserFlow assigns the selection and bubbles the dismiss")
+    func pickRelatedFlowAssignsAndDismisses() {
+        let parent = AppRouter()
+        let target = User(name: "Ada Lovelace", email: "ada@example.com")
+        parent.send(.sheet(RelatedUserPickerRoute(target: target)))
+        let child = AppRouter(parent: parent)
+        let setRelated = FakeSetRelatedUserUseCase()
+        let sut = PickRelatedUserFlow(target: target, setRelated: setRelated, router: child)
+        let picked = User(name: "Alan Turing", email: "alan@example.com")
+
+        sut.didSelectUser(picked)
+
+        #expect(target.related === picked)
+        #expect(parent.presentedSheet == nil)
+    }
+
+    @Test("PickRelatedUserFlow surfaces a failed assignment as an alert and stays open")
+    func pickRelatedFlowAlertsOnFailure() {
+        let parent = AppRouter()
+        let target = User(name: "Ada Lovelace", email: "ada@example.com")
+        parent.send(.sheet(RelatedUserPickerRoute(target: target)))
+        let child = AppRouter(parent: parent)
+        let setRelated = FakeSetRelatedUserUseCase()
+        setRelated.errorToThrow = UserRelationError.selfRelation
+        let sut = PickRelatedUserFlow(target: target, setRelated: setRelated, router: child)
+
+        sut.didSelectUser(target)
+
+        #expect(child.presentedAlert != nil)
+        #expect(parent.presentedSheet != nil)
+    }
+
     @Test("AddUserModalFlow dismisses on both finish and cancel")
     func addUserModalFlowDismisses() {
         let router = AppRouter()

@@ -7,6 +7,7 @@ final class FakeUserRepository: UserRepository {
     private(set) var refreshCalls = 0
     private(set) var addUserCalls: [(name: String, email: String)] = []
     private(set) var favoriteUpdates: [(user: User, isFavorite: Bool)] = []
+    private(set) var relationUpdates: [(user: User, related: User?)] = []
 
     func refreshUsers() async throws {
         if let errorToThrow { throw errorToThrow }
@@ -23,5 +24,11 @@ final class FakeUserRepository: UserRepository {
         if let errorToThrow { throw errorToThrow }
         user.isFavorite = isFavorite
         favoriteUpdates.append((user, isFavorite))
+    }
+
+    func setRelated(_ related: User?, for user: User) throws {
+        if let errorToThrow { throw errorToThrow }
+        user.related = related
+        relationUpdates.append((user, related))
     }
 }

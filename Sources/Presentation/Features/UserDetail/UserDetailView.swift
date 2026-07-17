@@ -2,9 +2,9 @@ import SwiftUI
 import Domain
 
 public struct UserDetailView: View {
-    // The existential (`any Store<State, Intent>`) decouples the view from the
-    // concrete store class: previews and tests can back the same view with a
-    // stub. `@State` makes the view own the instance across parent re-renders.
+    // `@State` makes the view own the store: parent body re-evaluations
+    // re-run the factory and pass a fresh instance here, but SwiftUI keeps
+    // the one from the first render.
     @State private var store: any Store<UserDetailState, UserDetailIntent>
 
     public init(store: any Store<UserDetailState, UserDetailIntent>) {
@@ -23,6 +23,30 @@ public struct UserDetailView: View {
                     systemImage: store.state.user.isFavorite ? "star.fill" : "star"
                 )
             }
+
+            Section("Related user") {
+                if let related = store.state.user.related {
+                    Button {
+                        store.send(.relatedTapped)
+                    } label: {
+                        VStack(alignment: .leading) {
+                            Text(related.name).font(.headline)
+                            Text(related.email).font(.subheadline).foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .swipeActions {
+                        Button("Remove", systemImage: "trash", role: .destructive) {
+                            store.send(.removeRelatedTapped)
+                        }
+                    }
+                } else {
+                    Button("Add related user", systemImage: "person.badge.plus") {
+                        store.send(.addRelatedTapped)
+                    }
+                }
+            }
+
             if let errorMessage = store.state.errorMessage {
                 Text(errorMessage).foregroundStyle(.red)
             }
@@ -32,9 +56,9 @@ public struct UserDetailView: View {
 }
 
 #Preview {
-    NavigationStack {
-        UserDetailView(store: PreviewStore(state: UserDetailState(
-            user: User(name: "Ada Lovelace", email: "ada@example.com", isFavorite: true)
-        )))
+    let user = User(name: "Ada Lovelace", email: "ada@example.com", isFavorite: true)
+    user.related = User(name: "Alan Turing", email: "alan@example.com")
+    return NavigationStack {
+        UserDetailView(store: PreviewStore(state: UserDetailState(user: user)))
     }
 }

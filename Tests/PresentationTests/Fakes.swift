@@ -25,6 +25,25 @@ final class LoginFlowSpy: LoginFlow {
     func didLogIn() { logIns += 1 }
 }
 
+final class UserDetailFlowSpy: UserDetailFlow {
+    private(set) var pickerRequests: [User] = []
+    private(set) var selectedRelated: [User] = []
+
+    func didRequestRelatedPicker(for user: User) { pickerRequests.append(user) }
+    func didSelectRelated(_ user: User) { selectedRelated.append(user) }
+}
+
+final class FakeSetRelatedUserUseCase: SetRelatedUserUseCase {
+    var errorToThrow: Error?
+    private(set) var calls: [(user: User, related: User?)] = []
+
+    func execute(user: User, related: User?) throws {
+        calls.append((user, related))
+        if let errorToThrow { throw errorToThrow }
+        user.related = related
+    }
+}
+
 final class AddUserFlowSpy: AddUserFlow {
     private(set) var finishCount = 0
     private(set) var cancelCount = 0

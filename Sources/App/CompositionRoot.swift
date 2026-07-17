@@ -43,11 +43,26 @@ struct CompositionRoot {
         // registration, and each builder receives the router of the wireframe
         // that presents it, so destinations always act on their own context.
         let session = session
-        registry.register(UserDetailRoute.self) { route, _ in
+        registry.register(UserDetailRoute.self) { route, router in
             UserDetailView(store: UserDetailStore(
                 user: route.user,
-                toggleFavorite: DefaultToggleFavoriteUseCase(repository: repository)
+                toggleFavorite: DefaultToggleFavoriteUseCase(repository: repository),
+                setRelated: DefaultSetRelatedUserUseCase(repository: repository),
+                flow: RelatedUserFlow(router: router)
             ))
+        }
+        registry.register(RelatedUserPickerRoute.self) { route, router in
+            UserListView(
+                store: UserListStore(
+                    refreshUsers: DefaultRefreshUsersUseCase(repository: repository),
+                    flow: PickRelatedUserFlow(
+                        target: route.target,
+                        setRelated: DefaultSetRelatedUserUseCase(repository: repository),
+                        router: router
+                    )
+                ),
+                mode: .picker
+            )
         }
         registry.register(AddUserRoute.self) { _, router in
             AddUserView(store: AddUserStore(

@@ -54,6 +54,54 @@ public struct PickUserFlow: UserListFlow {
     }
 }
 
+/// Detail-screen context: picking a related user and inspecting the current
+/// one both happen in sheets over wherever the detail lives — a tab stack or
+/// another modal; the child-wireframe chain makes that irrelevant here.
+public struct RelatedUserFlow: UserDetailFlow {
+    private let router: any Router
+
+    public init(router: any Router) {
+        self.router = router
+    }
+
+    public func didRequestRelatedPicker(for user: User) {
+        router.send(.sheet(RelatedUserPickerRoute(target: user)))
+    }
+
+    public func didSelectRelated(_ user: User) {
+        router.send(.sheet(UserDetailRoute(user: user)))
+    }
+}
+
+/// The modal that *returns* a value: selecting a user assigns it as the
+/// target's related user and dismisses; the detail screen needs no callback,
+/// because the `@Model` relationship is observable. A business-rule failure
+/// (self-relation) surfaces as a wireframe alert instead of dismissing.
+public struct PickRelatedUserFlow: UserListFlow {
+    private let target: User
+    private let setRelated: SetRelatedUserUseCase
+    private let router: any Router
+
+    public init(target: User, setRelated: SetRelatedUserUseCase, router: any Router) {
+        self.target = target
+        self.setRelated = setRelated
+        self.router = router
+    }
+
+    public func didSelectUser(_ user: User) {
+        do {
+            try setRelated.execute(user: target, related: user)
+            router.send(.dismiss)
+        } catch {
+            router.send(.alert(AlertContent(title: "Cannot relate", message: error.localizedDescription)))
+        }
+    }
+
+    public func didCancel() {
+        router.send(.dismiss)
+    }
+}
+
 /// The add-user form is presented modally in this app, so both outcomes
 /// dismiss it. Another context could pop, or chain a confirmation screen.
 public struct AddUserModalFlow: AddUserFlow {

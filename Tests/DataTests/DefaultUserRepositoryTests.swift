@@ -71,6 +71,24 @@ struct DefaultUserRepositoryTests {
         #expect(calls.count == 1)
     }
 
+    @Test("setRelated persists the relation and nil clears it")
+    func setRelatedPersists() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let user = User(name: "Ada Lovelace", email: "ada@example.com")
+        let related = User(name: "Alan Turing", email: "alan@example.com")
+        context.insert(user)
+        context.insert(related)
+        try context.save()
+        let sut = DefaultUserRepository(context: context, remote: FakeRemoteUserDataSource())
+
+        try sut.setRelated(related, for: user)
+        #expect(user.related === related)
+
+        try sut.setRelated(nil, for: user)
+        #expect(user.related == nil)
+    }
+
     @Test("setFavorite persists the new value")
     func setFavoritePersists() async throws {
         let container = try makeContainer()

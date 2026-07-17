@@ -12,4 +12,6 @@ public protocol UserRepository {
     func refreshUsers() async throws
     func addUser(name: String, email: String) async throws -> User
     func setFavorite(_ user: User, isFavorite: Bool) throws
+    /// `nil` removes the relation.
+    func setRelated(_ related: User?, for user: User) throws
 }

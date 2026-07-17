@@ -50,6 +50,11 @@ public final class DefaultUserRepository: UserRepository {
         user.isFavorite = isFavorite
         try context.save()
     }
+
+    public func setRelated(_ related: User?, for user: User) throws {
+        user.related = related
+        try context.save()
+    }
 }
 
 private extension UserDTO {
