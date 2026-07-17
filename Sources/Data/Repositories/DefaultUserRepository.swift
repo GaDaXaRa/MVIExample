@@ -19,10 +19,14 @@ public struct DefaultUserRepository: UserRepository {
         DefaultUserRepository(remote: MockRemoteUserDataSource(), local: LocalUserStore())
     }
 
+    public func observeUsers() async -> AsyncStream<[User]> {
+        await local.observe()
+    }
+
     public func fetchUsers() async throws -> [User] {
         let dtos = try await remote.fetchUsers()
         await local.cache(dtos.map { $0.toDomain() })
-        return await local.allUsers().sorted { $0.name < $1.name }
+        return await local.allUsers()
     }
 
     public func fetchUser(id: User.ID) async throws -> User {

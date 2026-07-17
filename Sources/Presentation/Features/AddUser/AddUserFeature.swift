@@ -30,12 +30,10 @@ public final class AddUserStore: Store {
 
     private let addUser: AddUserUseCase
     private let router: AppRouter
-    private let onSaved: (User) -> Void
 
-    public init(addUser: AddUserUseCase, router: AppRouter, onSaved: @escaping (User) -> Void) {
+    public init(addUser: AddUserUseCase, router: AppRouter) {
         self.addUser = addUser
         self.router = router
-        self.onSaved = onSaved
     }
 
     public func send(_ intent: AddUserIntent) {
@@ -55,8 +53,9 @@ public final class AddUserStore: Store {
         state.isSaving = true
         state.errorMessage = nil
         do {
-            let user = try await addUser.execute(name: state.name, email: state.email)
-            onSaved(user)
+            // No callback to the list: the repository caches the new user and
+            // the list's observation stream picks it up.
+            _ = try await addUser.execute(name: state.name, email: state.email)
             router.dismissSheet()
         } catch {
             state.errorMessage = error.localizedDescription

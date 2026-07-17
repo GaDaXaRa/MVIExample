@@ -16,6 +16,21 @@ struct FetchUsersUseCaseTests {
     }
 }
 
+@Suite("ObserveUsersUseCase")
+struct ObserveUsersUseCaseTests {
+    @Test("hands back the repository's stream unchanged")
+    func passesThroughRepositoryStream() async throws {
+        let repository = FakeUserRepository()
+        await repository.set(usersToReturn: [User(name: "Grace Hopper", email: "grace@example.com")])
+        let sut = DefaultObserveUsersUseCase(repository: repository)
+
+        var iterator = await sut.execute().makeAsyncIterator()
+        let users = await iterator.next()
+
+        #expect(users?.map(\.name) == ["Grace Hopper"])
+    }
+}
+
 @Suite("ToggleFavoriteUseCase")
 struct ToggleFavoriteUseCaseTests {
     @Test("forwards the new favorite value to the repository")

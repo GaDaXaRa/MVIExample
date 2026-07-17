@@ -1,10 +1,13 @@
 import SwiftUI
 
 public struct UserDetailView: View {
-    let store: UserDetailStore
+    // `@State` makes the view own the store: parent body re-evaluations
+    // re-run the factory and pass a fresh instance here, but SwiftUI keeps
+    // the one from the first render, preserving loaded state.
+    @State private var store: UserDetailStore
 
     public init(store: UserDetailStore) {
-        self.store = store
+        _store = State(initialValue: store)
     }
 
     public var body: some View {

@@ -10,7 +10,11 @@ struct CompositionRoot {
     private let repository: UserRepository = DefaultUserRepository.live()
 
     func makeUserListStore(router: AppRouter) -> UserListStore {
-        UserListStore(fetchUsers: DefaultFetchUsersUseCase(repository: repository), router: router)
+        UserListStore(
+            observeUsers: DefaultObserveUsersUseCase(repository: repository),
+            fetchUsers: DefaultFetchUsersUseCase(repository: repository),
+            router: router
+        )
     }
 
     func makeUserDetailStore(userID: User.ID, router: AppRouter) -> UserDetailStore {
@@ -21,7 +25,7 @@ struct CompositionRoot {
         )
     }
 
-    func makeAddUserStore(router: AppRouter, onSaved: @escaping (User) -> Void) -> AddUserStore {
-        AddUserStore(addUser: DefaultAddUserUseCase(repository: repository), router: router, onSaved: onSaved)
+    func makeAddUserStore(router: AppRouter) -> AddUserStore {
+        AddUserStore(addUser: DefaultAddUserUseCase(repository: repository), router: router)
     }
 }

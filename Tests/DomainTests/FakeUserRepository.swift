@@ -13,6 +13,14 @@ actor FakeUserRepository: UserRepository {
         self.usersToReturn = usersToReturn
     }
 
+    func observeUsers() async -> AsyncStream<[User]> {
+        let usersToReturn = usersToReturn
+        return AsyncStream { continuation in
+            continuation.yield(usersToReturn)
+            continuation.finish()
+        }
+    }
+
     func fetchUsers() async throws -> [User] {
         if let errorToThrow { throw errorToThrow }
         return usersToReturn

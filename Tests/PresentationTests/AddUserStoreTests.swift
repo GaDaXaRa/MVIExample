@@ -8,7 +8,7 @@ import Domain
 struct AddUserStoreTests {
     @Test("editing name and email updates the state")
     func editingFieldsUpdatesState() {
-        let sut = AddUserStore(addUser: FakeAddUserUseCase(), router: AppRouter(), onSaved: { _ in })
+        let sut = AddUserStore(addUser: FakeAddUserUseCase(), router: AppRouter())
 
         sut.send(.nameChanged("Ada"))
         sut.send(.emailChanged("ada@example.com"))
@@ -17,29 +17,25 @@ struct AddUserStoreTests {
         #expect(sut.state.email == "ada@example.com")
     }
 
-    @Test("a successful save notifies the caller and dismisses the sheet")
+    @Test("a successful save dismisses the sheet")
     func successfulSaveDismisses() async throws {
         let router = AppRouter()
         router.present(.addUser)
         let savedUser = User(name: "Ada Lovelace", email: "ada@example.com")
-        var reportedUser: User?
-        let sut = AddUserStore(
-            addUser: FakeAddUserUseCase(userToReturn: savedUser),
-            router: router,
-            onSaved: { reportedUser = $0 }
-        )
+        let sut = AddUserStore(addUser: FakeAddUserUseCase(userToReturn: savedUser), router: router)
 
         sut.send(.save)
         try await waitUntil { router.presentedSheet == nil }
 
-        #expect(reportedUser == savedUser)
+        #expect(router.presentedSheet == nil)
+        #expect(sut.state.errorMessage == nil)
     }
 
     @Test("cancel dismisses the sheet without saving")
     func cancelDismissesSheet() {
         let router = AppRouter()
         router.present(.addUser)
-        let sut = AddUserStore(addUser: FakeAddUserUseCase(), router: router, onSaved: { _ in })
+        let sut = AddUserStore(addUser: FakeAddUserUseCase(), router: router)
 
         sut.send(.cancel)
 
@@ -55,7 +51,7 @@ struct AddUserStoreTests {
         router.present(.addUser)
         var fake = FakeAddUserUseCase()
         fake.errorToThrow = SampleError()
-        let sut = AddUserStore(addUser: fake, router: router, onSaved: { _ in })
+        let sut = AddUserStore(addUser: fake, router: router)
 
         sut.send(.save)
         try await waitUntil { sut.state.errorMessage != nil }

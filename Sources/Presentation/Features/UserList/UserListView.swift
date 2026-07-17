@@ -3,18 +3,18 @@ import Domain
 
 public struct UserListView: View {
     @Bindable var router: AppRouter
-    let store: UserListStore
+    @State private var store: UserListStore
     let makeDetailStore: (User.ID) -> UserDetailStore
-    let makeAddUserStore: (@escaping (User) -> Void) -> AddUserStore
+    let makeAddUserStore: () -> AddUserStore
 
     public init(
         router: AppRouter,
         store: UserListStore,
         makeDetailStore: @escaping (User.ID) -> UserDetailStore,
-        makeAddUserStore: @escaping (@escaping (User) -> Void) -> AddUserStore
+        makeAddUserStore: @escaping () -> AddUserStore
     ) {
         self.router = router
-        self.store = store
+        _store = State(initialValue: store)
         self.makeDetailStore = makeDetailStore
         self.makeAddUserStore = makeAddUserStore
     }
@@ -39,7 +39,7 @@ public struct UserListView: View {
                 .sheet(item: $router.presentedSheet) { sheet in
                     switch sheet {
                     case .addUser:
-                        AddUserView(store: makeAddUserStore(store.userWasAdded))
+                        AddUserView(store: makeAddUserStore())
                     }
                 }
         }

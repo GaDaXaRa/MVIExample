@@ -33,6 +33,36 @@ struct DefaultUserRepositoryTests {
         #expect(usersAfterRefresh.first(where: { $0.id == id })?.isFavorite == true)
     }
 
+    @Test("observeUsers emits the current snapshot, then again when a favorite changes")
+    func observeEmitsOnFavoriteChange() async throws {
+        let id = UUID()
+        let remote = FakeRemoteUserDataSource()
+        await remote.set(usersToReturn: [UserDTO(id: id, name: "Ada Lovelace", email: "ada@example.com", isFavorite: false)])
+        let sut = DefaultUserRepository(remote: remote, local: LocalUserStore())
+        _ = try await sut.fetchUsers()
+
+        var iterator = await sut.observeUsers().makeAsyncIterator()
+        let initial = await iterator.next()
+        try await sut.setFavorite(id: id, isFavorite: true)
+        let afterToggle = await iterator.next()
+
+        #expect(initial?.first?.isFavorite == false)
+        #expect(afterToggle?.first?.isFavorite == true)
+    }
+
+    @Test("observeUsers emits when a new user is added")
+    func observeEmitsOnAddUser() async throws {
+        let sut = DefaultUserRepository(remote: FakeRemoteUserDataSource(), local: LocalUserStore())
+
+        var iterator = await sut.observeUsers().makeAsyncIterator()
+        let initial = await iterator.next()
+        _ = try await sut.addUser(name: "Katherine Johnson", email: "katherine@example.com")
+        let afterAdd = await iterator.next()
+
+        #expect(initial?.isEmpty == true)
+        #expect(afterAdd?.map(\.name) == ["Katherine Johnson"])
+    }
+
     @Test("fetchUser throws notFound for an id that was never cached")
     func fetchUserThrowsWhenMissing() async throws {
         let sut = DefaultUserRepository(remote: FakeRemoteUserDataSource(), local: LocalUserStore())

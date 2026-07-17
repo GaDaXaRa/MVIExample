@@ -4,6 +4,25 @@ import Domain
 // one operation's result, so a small Sendable struct/class is enough — no
 // need to go through a full fake repository as the Domain/Data tests do.
 
+/// Hands the store a stream the test controls: `emit` simulates the repository
+/// broadcasting a change (remote refresh, favorite toggle, new user).
+final class FakeObserveUsersUseCase: ObserveUsersUseCase, @unchecked Sendable {
+    private let stream: AsyncStream<[User]>
+    private let continuation: AsyncStream<[User]>.Continuation
+
+    init() {
+        (stream, continuation) = AsyncStream.makeStream(of: [User].self)
+    }
+
+    func execute() async -> AsyncStream<[User]> {
+        stream
+    }
+
+    func emit(_ users: [User]) {
+        continuation.yield(users)
+    }
+}
+
 struct FakeFetchUsersUseCase: FetchUsersUseCase {
     var usersToReturn: [User] = []
     var errorToThrow: (any Error & Sendable)?

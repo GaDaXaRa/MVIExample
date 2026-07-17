@@ -12,7 +12,7 @@ struct MVIExampleApp: App {
                 router: router,
                 store: composition.makeUserListStore(router: router),
                 makeDetailStore: { id in composition.makeUserDetailStore(userID: id, router: router) },
-                makeAddUserStore: { onSaved in composition.makeAddUserStore(router: router, onSaved: onSaved) }
+                makeAddUserStore: { composition.makeAddUserStore(router: router) }
             )
         }
     }

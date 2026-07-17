@@ -230,15 +230,32 @@ public final class UserListStore: Store {
 
     public func send(_ intent: UserListIntent) {
         switch intent {
-        case .onAppear, .refresh: Task { await load() }
+        case .onAppear:
+            startObservingIfNeeded()
+            Task { await refresh() }
+        case .refresh: Task { await refresh() }
         case .selectUser(let user): router.push(.userDetail(user.id))
         case .addUserTapped: router.present(.addUser)
         }
     }
 
-    private func load() async {
+    /// `state.users` has a single source of truth: the repository's
+    /// observation stream, so changes made anywhere in the app (favorite
+    /// toggles, new users) show up here automatically.
+    private func startObservingIfNeeded() {
+        guard observationTask == nil else { return }
+        observationTask = Task { [weak self] in
+            guard let stream = await self?.observeUsers.execute() else { return }
+            for await users in stream {
+                guard let self else { return }
+                self.state.users = users
+            }
+        }
+    }
+
+    private func refresh() async {
         state.isLoading = true
-        do { state.users = try await fetchUsers.execute() }
+        do { _ = try await fetchUsers.execute() }
         catch { state.errorMessage = error.localizedDescription }
         state.isLoading = false
     }
@@ -293,7 +310,7 @@ NavigationStack(path: $router.path) {
         }
         .sheet(item: $router.presentedSheet) { sheet in
             switch sheet {
-            case .addUser: AddUserView(store: makeAddUserStore(store.userWasAdded))
+            case .addUser: AddUserView(store: makeAddUserStore())
             }
         }
 }
@@ -380,6 +397,7 @@ fast and not flaky:
 
 ```swift
 sut.send(.onAppear)
+observe.emit(users)
 try await waitUntil { !sut.state.users.isEmpty }
 #expect(sut.state.users == users)
 ```
