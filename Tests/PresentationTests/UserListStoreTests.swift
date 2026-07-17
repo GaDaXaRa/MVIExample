@@ -8,7 +8,7 @@ struct UserListStoreTests {
     @Test("onAppear triggers a remote refresh")
     func onAppearTriggersRefresh() async throws {
         let refresh = FakeRefreshUsersUseCase()
-        let sut = UserListStore(refreshUsers: refresh, router: AppRouter())
+        let sut = UserListStore(refreshUsers: refresh, flow: UserListFlowSpy())
 
         sut.send(.onAppear)
         try await waitUntil { refresh.calls == 1 }
@@ -24,7 +24,7 @@ struct UserListStoreTests {
         }
         let refresh = FakeRefreshUsersUseCase()
         refresh.errorToThrow = SampleError()
-        let sut = UserListStore(refreshUsers: refresh, router: AppRouter())
+        let sut = UserListStore(refreshUsers: refresh, flow: UserListFlowSpy())
 
         sut.send(.refresh)
         try await waitUntil { sut.state.errorMessage != nil }
@@ -33,26 +33,25 @@ struct UserListStoreTests {
         #expect(sut.state.isLoading == false)
     }
 
-    @Test("selecting a user pushes a userDetail route onto the router")
-    func selectUserPushesRoute() {
-        let router = AppRouter()
-        let sut = UserListStore(refreshUsers: FakeRefreshUsersUseCase(), router: router)
+    @Test("selecting a user reports it to the flow — the store never picks the destination")
+    func selectUserReportsToFlow() {
+        let flow = UserListFlowSpy()
+        let sut = UserListStore(refreshUsers: FakeRefreshUsersUseCase(), flow: flow)
         let user = User(name: "Ada Lovelace", email: "ada@example.com")
 
         sut.send(.selectUser(user))
 
-        #expect(router.routes == [AnyRoute(UserDetailRoute(user: user))])
-        #expect(router.path.count == 1)
+        #expect(flow.selectedUsers == [user])
     }
 
-    @Test("tapping add presents the addUser sheet")
-    func addUserTappedPresentsSheet() {
-        let router = AppRouter()
-        let sut = UserListStore(refreshUsers: FakeRefreshUsersUseCase(), router: router)
+    @Test("tapping add reports the request to the flow")
+    func addUserTappedReportsToFlow() {
+        let flow = UserListFlowSpy()
+        let sut = UserListStore(refreshUsers: FakeRefreshUsersUseCase(), flow: flow)
 
         sut.send(.addUserTapped)
 
-        #expect(router.presentedSheet == AnyRoute(AddUserRoute()))
+        #expect(flow.addUserRequests == 1)
     }
 }
 

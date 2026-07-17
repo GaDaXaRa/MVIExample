@@ -1,6 +1,17 @@
 import Observation
 import Domain
 
+// MARK: - Flow
+
+/// The feature's navigation *policy*, expressed in domain language: the store
+/// reports what happened, never where it leads. The composition root injects
+/// a concrete flow, so the same list can push a detail in one context and,
+/// say, start a call in another — without touching this feature.
+public protocol UserListFlow {
+    func didSelectUser(_ user: User)
+    func didRequestAddUser()
+}
+
 // MARK: - Model
 
 /// Only transient UI state lives here. The users themselves reach the view
@@ -30,24 +41,23 @@ public final class UserListStore: Store {
     public private(set) var state = UserListState()
 
     private let refreshUsers: RefreshUsersUseCase
-    private let router: any Router
+    private let flow: any UserListFlow
 
-    public init(refreshUsers: RefreshUsersUseCase, router: any Router) {
+    public init(refreshUsers: RefreshUsersUseCase, flow: any UserListFlow) {
         self.refreshUsers = refreshUsers
-        self.router = router
+        self.flow = flow
     }
 
     public func send(_ intent: UserListIntent) {
         switch intent {
         case .onAppear, .refresh:
             Task { await refresh() }
-        // The store — never the destination view — decides the presentation
-        // mode. Swapping .push for .sheet here shows the same detail screen
-        // modally, with zero changes anywhere else.
+        // The store reports semantic events; the injected flow decides what
+        // screen (if any) comes next and how it is presented.
         case .selectUser(let user):
-            router.send(.push(UserDetailRoute(user: user)))
+            flow.didSelectUser(user)
         case .addUserTapped:
-            router.send(.sheet(AddUserRoute()))
+            flow.didRequestAddUser()
         }
     }
 

@@ -9,6 +9,16 @@ public nonisolated struct AddUserRoute: Route {
     public init() {}
 }
 
+// MARK: - Flow
+
+/// Semantic outcomes of this screen. The store doesn't even assume it is in a
+/// modal: whether finishing means dismissing a sheet, popping, or chaining a
+/// confirmation screen is the injected flow's decision.
+public protocol AddUserFlow {
+    func didFinish()
+    func didCancel()
+}
+
 // MARK: - Model
 
 public struct AddUserState: Equatable, Sendable {
@@ -36,11 +46,11 @@ public final class AddUserStore: Store {
     public private(set) var state = AddUserState()
 
     private let addUser: AddUserUseCase
-    private let router: any Router
+    private let flow: any AddUserFlow
 
-    public init(addUser: AddUserUseCase, router: any Router) {
+    public init(addUser: AddUserUseCase, flow: any AddUserFlow) {
         self.addUser = addUser
-        self.router = router
+        self.flow = flow
     }
 
     public func send(_ intent: AddUserIntent) {
@@ -50,7 +60,7 @@ public final class AddUserStore: Store {
         case .emailChanged(let email):
             state.email = email
         case .cancel:
-            router.send(.dismiss)
+            flow.didCancel()
         case .save:
             Task { await save() }
         }
@@ -63,7 +73,7 @@ public final class AddUserStore: Store {
             // No callback to the list: the repository inserts the new user
             // into SwiftData and the list's @Query picks it up.
             _ = try await addUser.execute(name: state.name, email: state.email)
-            router.send(.dismiss)
+            flow.didFinish()
         } catch {
             state.errorMessage = error.localizedDescription
         }

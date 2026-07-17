@@ -117,13 +117,18 @@ presentation-agnostic. Three pieces (all in `Presentation/Core`):
   and the fullscreen cover. It resolves any route through the registry in any
   presentation mode, and wraps modal contents in their own `NavigationStack`.
 
-A Store's `send(_:)` calls `router.send(.push(SomeRoute(...)))` /
-`.sheet(SomeRoute(...))` / `.present(SomeRoute(...))` — the **caller** picks the
-presentation mode; the destination view never knows which one was used and must
-not contain a `NavigationStack` or dismiss logic of its own. The task must include
-at least one push and one modal — if the user's feature list doesn't naturally
-produce both, add a minimal second screen/modal that does (e.g. an "About" sheet,
-or a settings row) rather than skipping the requirement.
+Stores never talk to the `Router` directly. Each feature owns a **flow protocol**
+in domain language (`<Feature>Flow` with methods like `didSelectUser(_:)`,
+`didFinish()`): the store reports semantic events, and a concrete flow (in
+`Presentation/Flows/`, injected by the composition root) decides what comes next
+and how — `router.send(.push(SomeRoute(...)))` / `.sheet(...)` / `.present(...)`.
+The **flow** picks the presentation mode; the destination view never knows which
+one was used and must not contain a `NavigationStack` or dismiss logic of its
+own. This is what lets the same feature navigate differently per context: inject
+a different flow, touch nothing else. The task must include at least one push
+and one modal — if the user's feature list doesn't naturally produce both, add a
+minimal second screen/modal that does (e.g. an "About" sheet, or a settings row)
+rather than skipping the requirement.
 
 ## 6. The App target: generate it with XcodeGen, don't hand-author a `.xcodeproj`
 

@@ -1,8 +1,25 @@
 import Domain
+@testable import Presentation
 
 // Lightweight use case fakes: each Presentation test only needs to control
 // one operation's result, so a small main-actor class is enough — no need to
 // go through a full fake repository as the Domain/Data tests do.
+
+final class UserListFlowSpy: UserListFlow {
+    private(set) var selectedUsers: [User] = []
+    private(set) var addUserRequests = 0
+
+    func didSelectUser(_ user: User) { selectedUsers.append(user) }
+    func didRequestAddUser() { addUserRequests += 1 }
+}
+
+final class AddUserFlowSpy: AddUserFlow {
+    private(set) var finishCount = 0
+    private(set) var cancelCount = 0
+
+    func didFinish() { finishCount += 1 }
+    func didCancel() { cancelCount += 1 }
+}
 
 final class FakeRefreshUsersUseCase: RefreshUsersUseCase {
     var errorToThrow: Error?

@@ -35,12 +35,18 @@ struct CompositionRoot {
         registry.register(AddUserRoute.self) { _ in
             AddUserView(store: AddUserStore(
                 addUser: DefaultAddUserUseCase(repository: repository),
-                router: router
+                flow: AddUserModalFlow(router: router)
             ))
         }
     }
 
     func makeUserListStore() -> UserListStore {
-        UserListStore(refreshUsers: DefaultRefreshUsersUseCase(repository: repository), router: router)
+        // The flow is the navigation policy for this context: swap
+        // `BrowseUsersFlow` for `QuickLookUsersFlow` and selecting a user
+        // opens the detail as a sheet instead — no feature code changes.
+        UserListStore(
+            refreshUsers: DefaultRefreshUsersUseCase(repository: repository),
+            flow: BrowseUsersFlow(router: router)
+        )
     }
 }

@@ -253,8 +253,8 @@ public final class UserListStore: Store {
     public func send(_ intent: UserListIntent) {
         switch intent {
         case .onAppear, .refresh: Task { await refresh() }
-        case .selectUser(let user): router.send(.push(UserDetailRoute(user: user)))
-        case .addUserTapped: router.send(.present(.addUser))
+        case .selectUser(let user): flow.didSelectUser(user)
+        case .addUserTapped: flow.didRequestAddUser()
         }
     }
 
@@ -306,13 +306,31 @@ Where should "push to detail" or "show a sheet" live? It is tempting to add a
 look like" with "where does the app go next" — and it forces every feature to know
 about navigation types it doesn't own.
 
-Instead, navigation lives in its own observable object, and Intent handlers call
-into it directly, exactly like any other side effect (analogous to calling a use
-case):
+Instead, navigation is split into **policy** and **mechanism**:
 
-Navigation gets the same shape as every feature: a closed vocabulary of intents
-behind a single entry point, and stores depend on the `Router` **protocol**, so
-tests can record intents with a spy instead of driving a real stack:
+```
+Store ──semantic event──▶ Flow   (policy: what comes next)
+                            │
+                            ▼
+                          Router (mechanism: push / sheet / pop)
+                            │
+              WireframeView + DestinationRegistry (presentation)
+```
+
+**Flows are the policy.** Each feature owns a protocol in domain language —
+`UserListFlow.didSelectUser(_:)`, `AddUserFlow.didFinish()` — and its store only
+reports what happened, never where it leads. Concrete flows
+(`Sources/Presentation/Flows/UserFlows.swift`) knit features together: that is
+their job, and the features themselves never know each other. The composition
+root decides which flow each screen gets, so the same list can push a detail in
+one context (`BrowseUsersFlow`) and show it as a sheet — or start a phone call —
+in another (`QuickLookUsersFlow`), without touching the feature. Store tests use
+a flow spy (`flow.selectedUsers == [user]`); route/mode assertions live in the
+flow tests.
+
+**The Router is the mechanism**: a closed vocabulary of intents behind a single
+entry point, mirroring `Store.send`. Flows depend on the `Router` protocol, so
+they are tested against a real `AppRouter` or a spy:
 
 ```swift
 // Sources/Presentation/Core/AppRouter.swift
@@ -469,11 +487,13 @@ isolation (`swift test --filter DomainTests`) since they don't depend on each ot
    `@MainActor @Observable final class <Feature>Store: Store` in one
    `<Feature>Feature.swift` file, then a matching `<Feature>View.swift`.
 4. **Navigation**: declare a `nonisolated struct <Feature>Route: Route` in the
-   feature if the screen is reachable from another one. Whoever navigates picks
-   the mode: `.push`, `.sheet` or `.present`.
+   feature if the screen is reachable from another one, and a `<Feature>Flow`
+   protocol for the semantic events the store reports. Implement or extend a
+   concrete flow in `Presentation/Flows/` — the flow, not the store, picks the
+   destination and the mode (`.push`, `.sheet` or `.present`).
 5. **App**: register the route with its view in `CompositionRoot`
-   (`registry.register(<Feature>Route.self) { ... }`), and add a
-   `make<Feature>Store(...)` factory if the screen is a root.
+   (`registry.register(<Feature>Route.self) { ... }`), inject the flow, and add
+   a `make<Feature>Store(...)` factory if the screen is a root.
 6. **Tests**: one test file per new Domain use case, one per new repository
    behavior, one per new Store — following the same fake-the-layer-below pattern
    as every existing test.
