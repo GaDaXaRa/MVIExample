@@ -13,7 +13,7 @@ public nonisolated protocol Route: Hashable {}
 /// Type-erased wrapper so heterogeneous route values can travel through one
 /// `NavigationPath` and one sheet/cover slot. Equality delegates to the
 /// wrapped route's value equality, which is what makes `popTo` work.
-public nonisolated struct AnyRoute: Hashable, Identifiable {
+public struct AnyRoute: Hashable, Identifiable {
     public let route: any Route
     private let box: AnyHashable
 
@@ -33,6 +33,18 @@ public nonisolated struct AnyRoute: Hashable, Identifiable {
     }
 }
 
+/// A system alert, described as a value so flows can trigger it like any
+/// other presentation — the wireframe owns the `.alert` modifier.
+public struct AlertContent: Equatable {
+    public let title: String
+    public let message: String?
+
+    public init(title: String, message: String? = nil) {
+        self.title = title
+        self.message = message
+    }
+}
+
 /// Navigation gets the same shape as every feature: a closed vocabulary of
 /// intents behind a single entry point, mirroring `Store.send`. Stores depend
 /// on this protocol — not on the concrete router — so tests can record
@@ -47,12 +59,14 @@ public enum RouterIntent {
     case sheet(any Route)
     /// Fullscreen cover (no-op on macOS, which has no `fullScreenCover`).
     case present(any Route)
+    case alert(AlertContent)
 
     case pop
     case popToRoot
     /// Pops everything above the most recent occurrence of the given route.
     case popTo(any Route)
-    /// Dismisses whichever modal (sheet or cover) is currently presented.
+    /// Dismisses the modal this wireframe presented — or, when it presented
+    /// nothing, the modal *containing* it (the intent bubbles to the parent).
     case dismiss
 }
 
@@ -77,8 +91,23 @@ public final class AppRouter: Router {
 
     public var presentedSheet: AnyRoute?
     public var presentedCover: AnyRoute?
+    public var presentedAlert: AlertContent?
 
-    public init() {}
+    /// SwiftUI's `.alert` wants a `Bool` binding; deriving it keeps
+    /// `presentedAlert` as the single source of truth.
+    public var isAlertPresented: Bool {
+        get { presentedAlert != nil }
+        set { if !newValue { presentedAlert = nil } }
+    }
+
+    /// Every modal gets its own child wireframe (its own stack, modals and
+    /// alerts); `dismiss` bubbles up through this chain, so a screen deep
+    /// inside a modal can close it without knowing who presented it.
+    private let parent: AppRouter?
+
+    public init(parent: AppRouter? = nil) {
+        self.parent = parent
+    }
 
     public func send(_ intent: RouterIntent) {
         switch intent {
@@ -90,6 +119,8 @@ public final class AppRouter: Router {
             presentedSheet = AnyRoute(route)
         case .present(let route):
             presentedCover = AnyRoute(route)
+        case .alert(let alert):
+            presentedAlert = alert
         case .pop:
             guard !path.isEmpty else { return }
             path.removeLast()
@@ -99,8 +130,12 @@ public final class AppRouter: Router {
             guard let index = routes.lastIndex(of: AnyRoute(route)) else { return }
             path.removeLast(routes.count - index - 1)
         case .dismiss:
-            presentedSheet = nil
-            presentedCover = nil
+            if presentedSheet != nil || presentedCover != nil {
+                presentedSheet = nil
+                presentedCover = nil
+            } else {
+                parent?.send(.dismiss)
+            }
         }
     }
 }

@@ -53,6 +53,20 @@ struct UserListStoreTests {
 
         #expect(flow.addUserRequests == 1)
     }
+
+    @Test("picker, end-session and cancel intents are forwarded to the flow")
+    func chromeIntentsAreForwarded() {
+        let flow = UserListFlowSpy()
+        let sut = UserListStore(refreshUsers: FakeRefreshUsersUseCase(), flow: flow)
+
+        sut.send(.userPickerTapped)
+        sut.send(.endSessionTapped)
+        sut.send(.cancelTapped)
+
+        #expect(flow.userPickerRequests == 1)
+        #expect(flow.endSessionRequests == 1)
+        #expect(flow.cancellations == 1)
+    }
 }
 
 /// Stores kick off work with `Task { ... }` from a synchronous `send`, so tests

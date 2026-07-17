@@ -1,5 +1,4 @@
 import SwiftUI
-import Presentation
 
 @main
 struct MVIExampleApp: App {
@@ -7,10 +6,8 @@ struct MVIExampleApp: App {
 
     var body: some Scene {
         WindowGroup {
-            WireframeView(router: composition.router, registry: composition.registry) {
-                UserListView(store: composition.makeUserListStore())
-            }
-            .modelContainer(composition.modelContainer)
+            RootView(composition: composition)
+                .modelContainer(composition.modelContainer)
         }
     }
 }

@@ -387,12 +387,26 @@ interactively. The registry is the one deliberate use of `AnyView` in the app: a
 map of heterogeneous view builders cannot be typed, and a screen boundary is where
 erasure costs nothing.
 
-`UserListView` → push → `UserDetailView` (`Sources/Presentation/Features/UserDetail`)
-and `UserListView` → modal → `AddUserView`
-(`Sources/Presentation/Features/AddUser`) are the two navigation paths in the sample
-app. A Store never presents a `View` directly; it only ever asks the `Router` to
-change a value, and the `View` layer reacts to that value. This keeps stores
-UI-framework-agnostic and trivially testable (see §8).
+**Wireframes nest.** Every modal a `WireframeView` presents is wrapped in a child
+wireframe with its own `AppRouter(parent:)` — its own stack, its own modals, its
+own alerts (`RouterIntent.alert(AlertContent)` is a presentation like any other).
+`dismiss` bubbles up the parent chain, so a screen deep inside a modal closes it
+without knowing who presented it. Registry builders receive the presenting
+wireframe's router, which is what keeps every destination acting on its own
+navigation context.
+
+**Wireframes multiply.** The app is a login gate (`SessionStore` + `RootView`)
+over a `TabView` where each tab is its own wireframe: independent navigation state
+per tab, kept alive across tab switches — and across session expiries, because the
+routers live in the composition root, not in the view tree. The same
+`UserListView` runs in all three tabs (mode `.browse`, flow `BrowseUsersFlow`) and
+inside a fullscreen modal picker (mode `.picker`, flow `PickUserFlow`, where
+selecting a user shows an alert and Cancel bubbles a dismiss).
+
+A Store never presents a `View` directly; it only ever reports events to its
+flow, which asks the `Router` to change a value, and the `View` layer reacts to
+that value. This keeps stores UI-framework-agnostic and trivially testable
+(see §8).
 
 ## 7. Composition Root: where the layers actually meet
 

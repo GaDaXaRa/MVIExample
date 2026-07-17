@@ -5,12 +5,16 @@ import Domain
 // never know each other. The composition root decides which flow each screen
 // gets, so the same feature can navigate differently in different contexts.
 
-/// Browsing context: selecting a user pushes its detail; adding opens a sheet.
+/// Browsing context (the tabs): selecting a user pushes its detail, adding
+/// opens a sheet, and the user picker covers the tab fullscreen — a cover has
+/// no swipe-to-dismiss, so it can only be closed through its Cancel button.
 public struct BrowseUsersFlow: UserListFlow {
     private let router: any Router
+    private let session: SessionStore
 
-    public init(router: any Router) {
+    public init(router: any Router, session: SessionStore) {
         self.router = router
+        self.session = session
     }
 
     public func didSelectUser(_ user: User) {
@@ -20,13 +24,21 @@ public struct BrowseUsersFlow: UserListFlow {
     public func didRequestAddUser() {
         router.send(.sheet(AddUserRoute()))
     }
+
+    public func didRequestUserPicker() {
+        router.send(.present(UserPickerRoute()))
+    }
+
+    public func didRequestEndSession() {
+        session.expire()
+    }
 }
 
-/// Alternative context for the *same* list feature: selecting a user shows
-/// the detail as a sheet instead of pushing it. Swapping this in at the
-/// composition root changes the app's navigation without touching UserList,
-/// UserDetail, or any view.
-public struct QuickLookUsersFlow: UserListFlow {
+/// Picker context (the modal): the *same* list feature, but selecting a user
+/// shows its data in an alert instead of navigating anywhere, and Cancel
+/// closes the modal. Injected with the modal's own child router, so both the
+/// alert and the dismissal happen in the modal's context.
+public struct PickUserFlow: UserListFlow {
     private let router: any Router
 
     public init(router: any Router) {
@@ -34,11 +46,11 @@ public struct QuickLookUsersFlow: UserListFlow {
     }
 
     public func didSelectUser(_ user: User) {
-        router.send(.sheet(UserDetailRoute(user: user)))
+        router.send(.alert(AlertContent(title: user.name, message: user.email)))
     }
 
-    public func didRequestAddUser() {
-        router.send(.sheet(AddUserRoute()))
+    public func didCancel() {
+        router.send(.dismiss)
     }
 }
 
@@ -57,5 +69,19 @@ public struct AddUserModalFlow: AddUserFlow {
 
     public func didCancel() {
         router.send(.dismiss)
+    }
+}
+
+/// Logging in starts the session; the root view reacts by swapping the login
+/// screen for the main tabs.
+public struct SessionLoginFlow: LoginFlow {
+    private let session: SessionStore
+
+    public init(session: SessionStore) {
+        self.session = session
+    }
+
+    public func didLogIn() {
+        session.logIn()
     }
 }

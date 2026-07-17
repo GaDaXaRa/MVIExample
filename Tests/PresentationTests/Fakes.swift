@@ -8,9 +8,21 @@ import Domain
 final class UserListFlowSpy: UserListFlow {
     private(set) var selectedUsers: [User] = []
     private(set) var addUserRequests = 0
+    private(set) var userPickerRequests = 0
+    private(set) var endSessionRequests = 0
+    private(set) var cancellations = 0
 
     func didSelectUser(_ user: User) { selectedUsers.append(user) }
     func didRequestAddUser() { addUserRequests += 1 }
+    func didRequestUserPicker() { userPickerRequests += 1 }
+    func didRequestEndSession() { endSessionRequests += 1 }
+    func didCancel() { cancellations += 1 }
+}
+
+final class LoginFlowSpy: LoginFlow {
+    private(set) var logIns = 0
+
+    func didLogIn() { logIns += 1 }
 }
 
 final class AddUserFlowSpy: AddUserFlow {

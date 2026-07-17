@@ -2,6 +2,14 @@ import SwiftUI
 import SwiftData
 import Domain
 
+/// The chrome each context exposes. Selection behavior is the flow's business;
+/// which buttons exist is the view's, and this is the whole difference between
+/// the browsing tabs and the modal picker.
+public enum UserListMode {
+    case browse
+    case picker
+}
+
 /// Presentation-agnostic, like every screen: it renders content and sends
 /// intents. Navigation containers (stack, sheet, cover) belong to the
 /// wireframe; destination resolution belongs to the registry.
@@ -14,18 +22,35 @@ public struct UserListView: View {
     // so any change to any `User`, made anywhere in the app, updates the list
     // automatically. Intents remain the only way the view talks to the store.
     @Query(sort: \User.name) private var users: [User]
+    private let mode: UserListMode
 
-    public init(store: any Store<UserListState, UserListIntent>) {
+    public init(store: any Store<UserListState, UserListIntent>, mode: UserListMode = .browse) {
         _store = State(initialValue: store)
+        self.mode = mode
     }
 
     public var body: some View {
         content
             .navigationTitle("Users")
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Add", systemImage: "plus") {
-                        store.send(.addUserTapped)
+                switch mode {
+                case .browse:
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Button("Add", systemImage: "plus") {
+                            store.send(.addUserTapped)
+                        }
+                        Button("Pick a user", systemImage: "person.crop.rectangle.stack") {
+                            store.send(.userPickerTapped)
+                        }
+                        Button("End session", systemImage: "lock") {
+                            store.send(.endSessionTapped)
+                        }
+                    }
+                case .picker:
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            store.send(.cancelTapped)
+                        }
                     }
                 }
             }
