@@ -105,30 +105,25 @@ and depends on this package's three library products.
 
 ## 5. Navigation recipe
 
-Keep navigation out of every feature's `State`. One `AppRouter`:
+Keep navigation out of every feature's `State`, and keep every destination view
+presentation-agnostic. Three pieces (all in `Presentation/Core`):
 
-```swift
-@Observable @MainActor
-public final class AppRouter {
-    public enum Route: Hashable { /* one case per pushable destination */ }
-    public enum Sheet: Identifiable { /* one case per modal; var id: String */ }
-    public var path: [Route] = []
-    public var presentedSheet: Sheet?
-    public func push(_ route: Route) { path.append(route) }
-    public func present(_ sheet: Sheet) { presentedSheet = sheet }
-    public func dismissSheet() { presentedSheet = nil }
-}
-```
+- **`Route` values**: each feature declares a `nonisolated struct <Feature>Route:
+  Route` saying *what* to show, never *how*.
+- **`DestinationRegistry`**: the composition root registers each route type with
+  the view that renders it, exactly once. Presentation mode is not part of the
+  registration.
+- **`WireframeView`**: the superior view owning the `NavigationStack`, the sheet
+  and the fullscreen cover. It resolves any route through the registry in any
+  presentation mode, and wraps modal contents in their own `NavigationStack`.
 
-A Store's `send(_:)` calls `router.send(.push(...))`/`router.send(.present(...))`
-directly for navigation Intents — it never returns a "navigation event" for the
-View to interpret. Pushed screens are described by per-feature `Route` values
-(`nonisolated struct <Feature>Route: Route`) registered with a
-`.navigationDestination` extension the root view applies; the root view binds
-`NavigationStack(path: $router.path)` for **push** and
-`.sheet(item: $router.presentedSheet)` for **modal**. The task must include at least one of each — if the user's feature list
-doesn't naturally produce both, add a minimal second screen/modal that does (e.g. an
-"About" sheet, or a settings row) rather than skipping the requirement.
+A Store's `send(_:)` calls `router.send(.push(SomeRoute(...)))` /
+`.sheet(SomeRoute(...))` / `.present(SomeRoute(...))` — the **caller** picks the
+presentation mode; the destination view never knows which one was used and must
+not contain a `NavigationStack` or dismiss logic of its own. The task must include
+at least one push and one modal — if the user's feature list doesn't naturally
+produce both, add a minimal second screen/modal that does (e.g. an "About" sheet,
+or a settings row) rather than skipping the requirement.
 
 ## 6. The App target: generate it with XcodeGen, don't hand-author a `.xcodeproj`
 

@@ -1,5 +1,8 @@
 import SwiftUI
 
+/// Presentation-agnostic: no `NavigationStack`, no dismiss logic, no idea
+/// whether it is on a sheet, a cover or a pushed screen. The wireframe
+/// provides the navigation chrome; dismissal happens through router intents.
 public struct AddUserView: View {
     // The existential (`any Store<State, Intent>`) decouples the view from the
     // concrete store class: previews and tests can back the same view with a
@@ -11,30 +14,28 @@ public struct AddUserView: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            Form {
-                TextField("Name", text: store.binding(\.name, send: AddUserIntent.nameChanged))
-                TextField("Email", text: store.binding(\.email, send: AddUserIntent.emailChanged))
-                #if os(iOS)
-                .keyboardType(.emailAddress)
-                .textInputAutocapitalization(.never)
-                #endif
+        Form {
+            TextField("Name", text: store.binding(\.name, send: AddUserIntent.nameChanged))
+            TextField("Email", text: store.binding(\.email, send: AddUserIntent.emailChanged))
+            #if os(iOS)
+            .keyboardType(.emailAddress)
+            .textInputAutocapitalization(.never)
+            #endif
 
-                if let errorMessage = store.state.errorMessage {
-                    Text(errorMessage).foregroundStyle(.red)
-                }
+            if let errorMessage = store.state.errorMessage {
+                Text(errorMessage).foregroundStyle(.red)
             }
-            .navigationTitle("New User")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { store.send(.cancel) }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    if store.state.isSaving {
-                        ProgressView()
-                    } else {
-                        Button("Save") { store.send(.save) }
-                    }
+        }
+        .navigationTitle("New User")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { store.send(.cancel) }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                if store.state.isSaving {
+                    ProgressView()
+                } else {
+                    Button("Save") { store.send(.save) }
                 }
             }
         }
@@ -45,5 +46,7 @@ public struct AddUserView: View {
     var state = AddUserState()
     state.name = "Ada Lovelace"
     state.email = "ada@example.com"
-    return AddUserView(store: PreviewStore(state: state))
+    return NavigationStack {
+        AddUserView(store: PreviewStore(state: state))
+    }
 }

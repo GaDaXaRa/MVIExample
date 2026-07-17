@@ -1,26 +1,35 @@
 import SwiftUI
 
-/// A route is a small `Hashable` **value** describing a pushed screen. Each
-/// feature defines its own route type and registers the matching view with a
-/// `.navigationDestination` extension (see `userDetailDestination`), so there
-/// is no central enum of screens — and no type-erased views: because the path
-/// carries values, routes stay comparable (`popTo` works by equality) and
-/// could be made `Codable` for deep links and state restoration.
+/// A route is a small `Hashable` **value** describing a destination screen —
+/// it says *what* to show, never *how*. The presentation mode (push, sheet,
+/// fullscreen cover) is chosen by whoever sends the `RouterIntent`, and the
+/// destination view itself never knows which one was used.
 ///
 /// `nonisolated` (opting out of the module's MainActor default) because route
 /// values are inert identifiers: conformers must be `nonisolated` too, so
 /// their synthesized `Hashable` never crosses an isolation boundary.
 public nonisolated protocol Route: Hashable {}
 
-/// Modal presentations are app-scoped and ephemeral (no deep links, no
-/// restoration), so a plain enum remains the pragmatic choice for them.
-public enum Sheet: Identifiable {
-    case addUser
+/// Type-erased wrapper so heterogeneous route values can travel through one
+/// `NavigationPath` and one sheet/cover slot. Equality delegates to the
+/// wrapped route's value equality, which is what makes `popTo` work.
+public nonisolated struct AnyRoute: Hashable, Identifiable {
+    public let route: any Route
+    private let box: AnyHashable
 
-    public var id: String {
-        switch self {
-        case .addUser: return "addUser"
-        }
+    public init(_ route: any Route) {
+        self.route = route
+        self.box = AnyHashable(route)
+    }
+
+    public var id: AnyHashable { box }
+
+    public static func == (lhs: AnyRoute, rhs: AnyRoute) -> Bool {
+        lhs.box == rhs.box
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        box.hash(into: &hasher)
     }
 }
 
@@ -33,13 +42,18 @@ public protocol Router: AnyObject {
 }
 
 public enum RouterIntent {
+    /// The caller picks the presentation; the destination never knows which:
     case push(any Route)
+    case sheet(any Route)
+    /// Fullscreen cover (no-op on macOS, which has no `fullScreenCover`).
+    case present(any Route)
+
     case pop
     case popToRoot
     /// Pops everything above the most recent occurrence of the given route.
     case popTo(any Route)
-    case present(Sheet)
-    case dismissSheet
+    /// Dismisses whichever modal (sheet or cover) is currently presented.
+    case dismiss
 }
 
 @Observable
@@ -59,29 +73,34 @@ public final class AppRouter: Router {
 
     /// Mirror of the pushed routes: `NavigationPath` is opaque (no element
     /// access), and `popTo` needs to locate a route's position.
-    public private(set) var routes: [AnyHashable] = []
+    public private(set) var routes: [AnyRoute] = []
 
-    public var presentedSheet: Sheet?
+    public var presentedSheet: AnyRoute?
+    public var presentedCover: AnyRoute?
 
     public init() {}
 
     public func send(_ intent: RouterIntent) {
         switch intent {
         case .push(let route):
-            routes.append(AnyHashable(route))
-            path.append(route)
+            let wrapped = AnyRoute(route)
+            routes.append(wrapped)
+            path.append(wrapped)
+        case .sheet(let route):
+            presentedSheet = AnyRoute(route)
+        case .present(let route):
+            presentedCover = AnyRoute(route)
         case .pop:
             guard !path.isEmpty else { return }
             path.removeLast()
         case .popToRoot:
             path.removeLast(path.count)
         case .popTo(let route):
-            guard let index = routes.lastIndex(of: AnyHashable(route)) else { return }
+            guard let index = routes.lastIndex(of: AnyRoute(route)) else { return }
             path.removeLast(routes.count - index - 1)
-        case .present(let sheet):
-            presentedSheet = sheet
-        case .dismissSheet:
+        case .dismiss:
             presentedSheet = nil
+            presentedCover = nil
         }
     }
 }

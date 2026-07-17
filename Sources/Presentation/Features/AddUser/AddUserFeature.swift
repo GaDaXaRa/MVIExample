@@ -1,6 +1,14 @@
 import Observation
 import Domain
 
+// MARK: - Route
+
+/// This feature's route: a value saying *what* to show, never *how*. Whoever
+/// sends it decides push/sheet/cover; `AddUserView` never knows which.
+public nonisolated struct AddUserRoute: Route {
+    public init() {}
+}
+
 // MARK: - Model
 
 public struct AddUserState: Equatable, Sendable {
@@ -42,7 +50,7 @@ public final class AddUserStore: Store {
         case .emailChanged(let email):
             state.email = email
         case .cancel:
-            router.send(.dismissSheet)
+            router.send(.dismiss)
         case .save:
             Task { await save() }
         }
@@ -55,7 +63,7 @@ public final class AddUserStore: Store {
             // No callback to the list: the repository inserts the new user
             // into SwiftData and the list's @Query picks it up.
             _ = try await addUser.execute(name: state.name, email: state.email)
-            router.send(.dismissSheet)
+            router.send(.dismiss)
         } catch {
             state.errorMessage = error.localizedDescription
         }

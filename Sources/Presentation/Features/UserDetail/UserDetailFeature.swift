@@ -1,6 +1,19 @@
 import Observation
 import Domain
 
+// MARK: - Route
+
+/// This feature's route: a value saying *what* to show, never *how*. Whoever
+/// sends it decides push/sheet/cover; `UserDetailView` never knows which.
+/// `nonisolated` like the `Route` protocol: routes are inert values.
+public nonisolated struct UserDetailRoute: Route {
+    public let user: User
+
+    public init(user: User) {
+        self.user = user
+    }
+}
+
 // MARK: - Model
 
 /// The user arrives already loaded (it is the navigation payload), so there

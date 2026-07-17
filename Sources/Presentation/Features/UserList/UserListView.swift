@@ -2,8 +2,10 @@ import SwiftUI
 import SwiftData
 import Domain
 
+/// Presentation-agnostic, like every screen: it renders content and sends
+/// intents. Navigation containers (stack, sheet, cover) belong to the
+/// wireframe; destination resolution belongs to the registry.
 public struct UserListView: View {
-    @Bindable var router: AppRouter
     // The existential (`any Store<State, Intent>`) decouples the view from the
     // concrete store class: previews and tests can back the same view with a
     // stub. `@State` makes the view own the instance across parent re-renders.
@@ -12,43 +14,22 @@ public struct UserListView: View {
     // so any change to any `User`, made anywhere in the app, updates the list
     // automatically. Intents remain the only way the view talks to the store.
     @Query(sort: \User.name) private var users: [User]
-    let makeDetailStore: (User) -> any Store<UserDetailState, UserDetailIntent>
-    let makeAddUserStore: () -> any Store<AddUserState, AddUserIntent>
 
-    public init(
-        router: AppRouter,
-        store: any Store<UserListState, UserListIntent>,
-        makeDetailStore: @escaping (User) -> any Store<UserDetailState, UserDetailIntent>,
-        makeAddUserStore: @escaping () -> any Store<AddUserState, AddUserIntent>
-    ) {
-        self.router = router
+    public init(store: any Store<UserListState, UserListIntent>) {
         _store = State(initialValue: store)
-        self.makeDetailStore = makeDetailStore
-        self.makeAddUserStore = makeAddUserStore
     }
 
     public var body: some View {
-        NavigationStack(path: $router.path) {
-            content
-                .navigationTitle("Users")
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("Add", systemImage: "plus") {
-                            store.send(.addUserTapped)
-                        }
+        content
+            .navigationTitle("Users")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Add", systemImage: "plus") {
+                        store.send(.addUserTapped)
                     }
                 }
-                // One registration per feature whose screens can be pushed
-                // from here — decentralized, and fully typed (no AnyView).
-                .userDetailDestination(makeStore: makeDetailStore)
-                .sheet(item: $router.presentedSheet) { sheet in
-                    switch sheet {
-                    case .addUser:
-                        AddUserView(store: makeAddUserStore())
-                    }
-                }
-        }
-        .onAppear { store.send(.onAppear) }
+            }
+            .onAppear { store.send(.onAppear) }
     }
 
     @ViewBuilder
@@ -103,11 +84,8 @@ private struct UserRow: View {
     ] {
         container.mainContext.insert(user)
     }
-    return UserListView(
-        router: AppRouter(),
-        store: PreviewStore(state: UserListState()),
-        makeDetailStore: { user in PreviewStore(state: UserDetailState(user: user)) },
-        makeAddUserStore: { PreviewStore(state: AddUserState()) }
-    )
+    return NavigationStack {
+        UserListView(store: PreviewStore(state: UserListState()))
+    }
     .modelContainer(container)
 }

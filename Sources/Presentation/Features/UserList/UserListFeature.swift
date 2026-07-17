@@ -41,10 +41,13 @@ public final class UserListStore: Store {
         switch intent {
         case .onAppear, .refresh:
             Task { await refresh() }
+        // The store — never the destination view — decides the presentation
+        // mode. Swapping .push for .sheet here shows the same detail screen
+        // modally, with zero changes anywhere else.
         case .selectUser(let user):
             router.send(.push(UserDetailRoute(user: user)))
         case .addUserTapped:
-            router.send(.present(.addUser))
+            router.send(.sheet(AddUserRoute()))
         }
     }
 

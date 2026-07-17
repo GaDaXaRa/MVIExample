@@ -19,7 +19,7 @@ struct AddUserStoreTests {
     @Test("a successful save dismisses the sheet")
     func successfulSaveDismisses() async throws {
         let router = AppRouter()
-        router.send(.present(.addUser))
+        router.send(.sheet(AddUserRoute()))
         let addUser = FakeAddUserUseCase()
         addUser.userToReturn = User(name: "Ada Lovelace", email: "ada@example.com")
         let sut = AddUserStore(addUser: addUser, router: router)
@@ -34,7 +34,7 @@ struct AddUserStoreTests {
     @Test("cancel dismisses the sheet without saving")
     func cancelDismissesSheet() {
         let router = AppRouter()
-        router.send(.present(.addUser))
+        router.send(.sheet(AddUserRoute()))
         let sut = AddUserStore(addUser: FakeAddUserUseCase(), router: router)
 
         sut.send(.cancel)
@@ -48,7 +48,7 @@ struct AddUserStoreTests {
             var errorDescription: String? { "invalid" }
         }
         let router = AppRouter()
-        router.send(.present(.addUser))
+        router.send(.sheet(AddUserRoute()))
         let fake = FakeAddUserUseCase()
         fake.errorToThrow = SampleError()
         let sut = AddUserStore(addUser: fake, router: router)

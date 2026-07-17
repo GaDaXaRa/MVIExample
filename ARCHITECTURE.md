@@ -321,57 +321,53 @@ public protocol Router: AnyObject {
 }
 
 public enum RouterIntent {
+    // The caller picks the presentation; the destination never knows which:
     case push(any Route)
+    case sheet(any Route)
+    case present(any Route)   // fullscreen cover
+
     case pop
     case popToRoot
     case popTo(any Route)
-    case present(Sheet)
-    case dismissSheet
+    case dismiss
 }
 ```
 
-Pushed screens are described by **route values, not view builders**: each feature
-declares its own small `Hashable` struct conforming to `Route` and registers the
-matching view with a `.navigationDestination` extension. There is no central enum
-of screens (features stay decoupled) and no `AnyView` (the path carries values;
-SwiftUI builds each destination fully typed). Because routes are values, they stay
-comparable — `popTo` works by equality — and could be made `Codable` for deep
-links. `AppRouter` keeps a `routes` mirror next to the opaque `NavigationPath`,
-reconciled in `didSet` when the user pops interactively:
+Destinations are described by **route values, not view builders**: each feature
+declares a small `Hashable` struct conforming to `Route` that says *what* to show,
+never *how*. The `DestinationRegistry` (filled once by the composition root) maps
+each route type to the view that renders it, and `WireframeView` — the superior
+view that owns the `NavigationStack`, the sheet and the fullscreen cover — resolves
+routes through it at presentation time. Because resolution is independent of the
+presentation mode, **the same route (and the same view) can be pushed or presented
+modally interchangeably**; swapping `.push(UserDetailRoute(user:))` for
+`.sheet(UserDetailRoute(user:))` in a store is the entire change. Views carry no
+`NavigationStack` and no dismiss logic; modal contents get their stack from the
+wireframe, so toolbars work identically in every mode.
 
 ```swift
-// Sources/Presentation/Features/UserDetail/UserDetailView.swift
+// Sources/Presentation/Features/UserDetail/UserDetailFeature.swift
 public nonisolated struct UserDetailRoute: Route {
     public let user: User
 }
 
-public extension View {
-    func userDetailDestination(
-        makeStore: @escaping (User) -> any Store<UserDetailState, UserDetailIntent>
-    ) -> some View {
-        navigationDestination(for: UserDetailRoute.self) { route in
-            UserDetailView(store: makeStore(route.user))
-        }
-    }
+// Sources/App/CompositionRoot.swift — the one place that knows the map:
+registry.register(UserDetailRoute.self) { route in
+    UserDetailView(store: UserDetailStore(user: route.user, toggleFavorite: ...))
+}
+
+// Sources/App/MVIExampleApp.swift
+WireframeView(router: composition.router, registry: composition.registry) {
+    UserListView(store: composition.makeUserListStore())
 }
 ```
 
-Modal presentations are ephemeral (no deep links, no restoration), so a plain
-`Sheet` enum remains the pragmatic choice for them. The root view binds the
-router's state and applies one destination registration per feature:
-
-```swift
-// Sources/Presentation/Features/UserList/UserListView.swift
-NavigationStack(path: $router.path) {
-    content
-        .userDetailDestination(makeStore: makeDetailStore)
-        .sheet(item: $router.presentedSheet) { sheet in
-            switch sheet {
-            case .addUser: AddUserView(store: makeAddUserStore())
-            }
-        }
-}
-```
+Because routes are values, they stay comparable — `popTo` works by equality — and
+could be made `Codable` for deep links. `AppRouter` keeps a `routes` mirror next to
+the opaque `NavigationPath`, reconciled in `didSet` when the user pops
+interactively. The registry is the one deliberate use of `AnyView` in the app: a
+map of heterogeneous view builders cannot be typed, and a screen boundary is where
+erasure costs nothing.
 
 `UserListView` → push → `UserDetailView` (`Sources/Presentation/Features/UserDetail`)
 and `UserListView` → modal → `AddUserView`
@@ -472,11 +468,12 @@ isolation (`swift test --filter DomainTests`) since they don't depend on each ot
 3. **Presentation**: create `<Feature>State`, `<Feature>Intent`, and a
    `@MainActor @Observable final class <Feature>Store: Store` in one
    `<Feature>Feature.swift` file, then a matching `<Feature>View.swift`.
-4. **Navigation**: declare a `nonisolated struct <Feature>Route: Route` plus a
-   `.navigationDestination` registration extension in the feature, and apply it
-   in the root view (push) — or add a case to `Sheet`
-   (modal) if the feature is reachable from another screen.
-5. **App**: add a `make<Feature>Store(...)` factory method to `CompositionRoot`.
+4. **Navigation**: declare a `nonisolated struct <Feature>Route: Route` in the
+   feature if the screen is reachable from another one. Whoever navigates picks
+   the mode: `.push`, `.sheet` or `.present`.
+5. **App**: register the route with its view in `CompositionRoot`
+   (`registry.register(<Feature>Route.self) { ... }`), and add a
+   `make<Feature>Store(...)` factory if the screen is a root.
 6. **Tests**: one test file per new Domain use case, one per new repository
    behavior, one per new Store — following the same fake-the-layer-below pattern
    as every existing test.
