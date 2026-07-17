@@ -18,7 +18,8 @@ screen that lives in the Presentation module.
 
 ## 2. Module graph and the Dependency Rule
 
-The project is a single Swift Package (`Package.swift`) with four targets:
+The project is a single Swift Package (`Package.swift`) with three library targets,
+plus a fourth, native Xcode target for the app itself:
 
 ```
 Domain            <- no dependencies
@@ -38,13 +39,23 @@ is a build setting, not a promise.**
 .target(name: "Domain"),
 .target(name: "Data", dependencies: ["Domain"]),
 .target(name: "Presentation", dependencies: ["Domain"]),
-.executableTarget(name: "App", dependencies: ["Domain", "Data", "Presentation"]),
 ```
 
 Why `Presentation` depends only on `Domain`: a screen should only know about business
 concepts (`User`, `FetchUsersUseCase`) and never about *how* those concepts are
 fetched or stored (`URLSession`, an actor-backed cache, a DTO). That knowledge is
 Data's job, and only the composition root is allowed to introduce it.
+
+`App` (`Sources/App`) is *not* a target in `Package.swift`: an SPM `executableTarget`
+compiles fine against the iOS Simulator SDK but cannot produce an installable `.app`
+bundle. Instead, [`project.yml`](project.yml) declares `App` as a real Xcode
+"iOS App" target that depends on the `Domain`, `Data`, and `Presentation` products of
+this package (as a local Swift Package dependency) and builds the same two files in
+`Sources/App`. [XcodeGen](https://github.com/yonaskolb/XcodeGen) turns that spec into
+`MVIExample.xcodeproj` on demand (`xcodegen generate`) — the project file itself
+isn't committed, so it can never drift from `project.yml`. The Dependency Rule still
+holds for this target: it is the only one in the whole graph, package or Xcode
+project, allowed to import all three layers at once (see §7).
 
 ## 3. Domain: entities, repository contracts, use cases
 
