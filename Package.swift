@@ -7,8 +7,7 @@ let package = Package(
     products: [
         .library(name: "Domain", targets: ["Domain"]),
         .library(name: "Data", targets: ["Data"]),
-        .library(name: "Presentation", targets: ["Presentation"]),
-        .executable(name: "App", targets: ["App"])
+        .library(name: "Presentation", targets: ["Presentation"])
     ],
     targets: [
         // MARK: - Domain (entities, use cases, repository protocols). No dependencies: the innermost circle.
@@ -20,8 +19,9 @@ let package = Package(
         // MARK: - Presentation (MVI: State, Intent, Store + SwiftUI views). Depends only on Domain, never on Data.
         .target(name: "Presentation", dependencies: ["Domain"]),
 
-        // MARK: - App (composition root). The only target allowed to see all layers and wire concrete types together.
-        .executableTarget(name: "App", dependencies: ["Domain", "Data", "Presentation"]),
+        // The App composition root (Sources/App) is built by the native Xcode target
+        // generated from project.yml, not by this package — an SPM executableTarget
+        // can't produce an installable, simulator-runnable .app bundle. See project.yml.
 
         .testTarget(name: "DomainTests", dependencies: ["Domain"]),
         .testTarget(name: "DataTests", dependencies: ["Data", "Domain"]),

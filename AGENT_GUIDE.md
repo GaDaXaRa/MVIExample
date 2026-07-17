@@ -51,14 +51,12 @@ let package = Package(
     products: [
         .library(name: "Domain", targets: ["Domain"]),
         .library(name: "Data", targets: ["Data"]),
-        .library(name: "Presentation", targets: ["Presentation"]),
-        .executable(name: "App", targets: ["App"])
+        .library(name: "Presentation", targets: ["Presentation"])
     ],
     targets: [
         .target(name: "Domain"),
         .target(name: "Data", dependencies: ["Domain"]),
         .target(name: "Presentation", dependencies: ["Domain"]),          // never depends on Data
-        .executableTarget(name: "App", dependencies: ["Domain", "Data", "Presentation"]),
         .testTarget(name: "DomainTests", dependencies: ["Domain"]),
         .testTarget(name: "DataTests", dependencies: ["Data", "Domain"]),
         .testTarget(name: "PresentationTests", dependencies: ["Presentation", "Domain"])
@@ -68,9 +66,13 @@ let package = Package(
 
 Add `.macOS(.v14)` even though the target is an iOS app: it lets `swift build` /
 `swift test` run on any machine without booting a simulator, which is how you (the
-agent) verify your own work. Guard any UIKit-only SwiftUI modifier
+agent) verify Domain/Data/Presentation. Guard any UIKit-only SwiftUI modifier
 (`.keyboardType`, `.textInputAutocapitalization`, ...) with `#if os(iOS)` so the
 macOS build target still compiles.
+
+Do **not** add a fourth `executableTarget` for the app itself — see §6. The `App`
+target that actually runs on a simulator is declared separately, in `project.yml`,
+and depends on this package's three library products.
 
 ## 4. Build order (follow this sequence; don't jump ahead)
 
@@ -96,9 +98,10 @@ macOS build target still compiles.
 4. **App fourth.** `CompositionRoot` (wires concrete Data types to Domain protocols,
    one `make<Feature>Store` factory per feature) and the `@main App` struct
    (`@State private var router = AppRouter()`, builds the root view from
-   `CompositionRoot`).
+   `CompositionRoot`) in `Sources/App`, plus the `project.yml` that turns those
+   files into a real, simulator-runnable Xcode target (see §6).
 5. **Tests alongside each layer**, not at the end — write the test target for a
-   layer right after building it, per §7.
+   layer right after building it, per §8.
 
 ## 5. Navigation recipe
 
@@ -125,7 +128,82 @@ AppRouter.Route.self)` for **push**, and `.sheet(item: $router.presentedSheet)` 
 doesn't naturally produce both, add a minimal second screen/modal that does (e.g. an
 "About" sheet, or a settings row) rather than skipping the requirement.
 
-## 6. Composition Root recipe
+## 6. The App target: generate it with XcodeGen, don't hand-author a `.xcodeproj`
+
+`Sources/App` (the `@main` App struct and `CompositionRoot`) needs to become a real
+Xcode "iOS App" target to be installable and runnable on a simulator — an SPM
+`executableTarget` compiles against the iOS Simulator SDK but never produces an
+installable `.app` bundle (no Info.plist generation tied to an app product, no code
+signing for an app product type, etc.). Do not attempt to hand-write a
+`.xcodeproj`/`pbxproj` file yourself; it is a fragile, undocumented binary-ish
+format and easy to corrupt. Instead:
+
+1. Check for [XcodeGen](https://github.com/yonaskolb/XcodeGen): `which xcodegen`.
+   If missing and Homebrew is available and working, `brew install xcodegen`. If
+   Homebrew itself is broken (common after a macOS upgrade until the user updates
+   it), ask the user to update/fix Homebrew rather than working around it.
+2. Write `project.yml` at the repository root:
+
+```yaml
+name: <AppName>
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  <AppName>Kit:
+    path: .
+targets:
+  App:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Sources/App
+    dependencies:
+      - package: <AppName>Kit
+        product: Domain
+      - package: <AppName>Kit
+        product: Data
+      - package: <AppName>Kit
+        product: Presentation
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.<appname>
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        SWIFT_VERSION: "6.0"
+```
+
+3. Run `xcodegen generate` to produce `<AppName>.xcodeproj`. Do **not** commit the
+   generated project — gitignore `*.xcodeproj/` and commit `project.yml` instead,
+   so the project can never drift from the package and is regenerated on demand.
+4. Remove any `executableTarget`/`.executable` product named `App` from
+   `Package.swift` if one exists (see §3) — a native Xcode target and an SPM
+   executable product sharing the name `App` in the same workspace is a naming
+   collision waiting to happen, and only one of them can actually run on a
+   simulator.
+
+Verify the result end to end rather than assuming the config is right:
+
+```bash
+xcodebuild build -project <AppName>.xcodeproj -scheme App -destination 'id=<simulator-udid>'
+xcrun simctl boot <simulator-udid>              # if not already booted
+xcrun simctl install <simulator-udid> <DerivedData path from the build log>/<AppName>.app
+xcrun simctl launch <simulator-udid> com.example.<appname>
+xcrun simctl io <simulator-udid> screenshot /tmp/screenshot.png
+```
+
+Read the screenshot back (e.g. with a file-reading tool that can view images) to
+confirm the UI actually rendered — a launch with no crash is not proof the screen
+looks right. `xcrun simctl` has no built-in tap/touch injection, so exercising push
+and modal navigation via taps from an agent generally isn't possible without extra
+tooling (Accessibility-permissioned UI scripting, or a UI test target); rely on the
+unit tests from §8 to cover navigation logic, and be explicit in the README about
+what was and wasn't verified through the simulator versus through tests.
+
+## 7. Composition Root recipe
 
 One `struct CompositionRoot` in the `App` target — the only file allowed to import
 `Domain`, `Data`, and `Presentation` together:
@@ -145,7 +223,7 @@ adding an item the list should show), pass a plain closure (`onSaved: (Item) ->
 Void`) captured at construction time in `CompositionRoot` — don't reach for
 Combine, NotificationCenter, or an event bus for something this local.
 
-## 7. Testing recipe
+## 8. Testing recipe
 
 Mirror the module graph — one test target per source target, each faking only the
 layer directly below it, never the real implementation two layers down:
@@ -184,10 +262,10 @@ that pass for the wrong reason.
 Use `#expect(throws: SomeError.self)` for the type-only check; use `#expect(throws:
 someValue)` only when the error type is `Equatable`.
 
-## 8. Verifying your own work (do this before reporting done)
+## 9. Verifying your own work (do this before reporting done)
 
 ```bash
-swift build          # compiles Domain/Data/Presentation/App for macOS — fast inner-loop check
+swift build          # compiles Domain/Data/Presentation for macOS — fast inner-loop check
 swift test           # runs every test target with Swift Testing
 ```
 
@@ -199,7 +277,7 @@ iOS-only API usage that a macOS-only `swift build` can't:
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-  xcodebuild build -scheme App -destination 'id=<simulator-udid>'
+  xcodebuild build -project <AppName>.xcodeproj -scheme App -destination 'id=<simulator-udid>'
 # list available simulators/udids with:
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun simctl list devices available
 ```
@@ -210,16 +288,14 @@ check `xcode-select -p` and retry with `DEVELOPER_DIR` pointed at Xcode.app as
 above, rather than switching the machine's default toolchain (which is a
 system-wide change you should not make without asking).
 
-An SPM `executableTarget` compiles a SwiftUI `App` for the iOS Simulator SDK (good
-enough to catch API mistakes) but does **not** produce an installable `.app`
-bundle — that requires a real Xcode "iOS App" target/product type, which an agent
-cannot reliably hand-author as a `.xcodeproj`. Say this limitation explicitly in the
-generated README rather than claiming the app can be launched on a simulator; point
-the user at opening `Package.swift` directly in Xcode and running the `App` scheme,
-or at wrapping the package as a local dependency of a real Xcode project if they
-need a distributable build.
+Once XcodeGen has produced `<AppName>.xcodeproj` (§6), that same `xcodebuild`
+invocation produces a real, installable `<AppName>.app` — install and launch it with
+`xcrun simctl install`/`launch` and screenshot it with `xcrun simctl io ... screenshot`
+to confirm it actually renders (§6) before telling the user it runs on the
+simulator. Don't claim the app launches successfully without having actually
+launched and screenshotted it in the same session.
 
-## 9. Documentation to produce alongside the code
+## 10. Documentation to produce alongside the code
 
 Every replication of this architecture should also produce:
 - **README.md** — what the sample app does, project/module layout, how to build
@@ -233,7 +309,7 @@ Every replication of this architecture should also produce:
 - This file itself, if the user wants to replicate the pattern *again* later —
   otherwise it's optional for a one-off app.
 
-## 10. Common mistakes to avoid
+## 11. Common mistakes to avoid
 
 - Putting navigation state inside a feature's `State` instead of `AppRouter`.
 - Letting `Presentation` depend on `Data` "just this once" — it breaks the whole
