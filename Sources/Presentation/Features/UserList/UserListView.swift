@@ -1,16 +1,24 @@
 import SwiftUI
+import SwiftData
 import Domain
 
 public struct UserListView: View {
     @Bindable var router: AppRouter
+    // `@State` makes the view own the store: parent body re-evaluations
+    // re-run the factory and pass a fresh instance here, but SwiftUI keeps
+    // the one from the first render.
     @State private var store: UserListStore
-    let makeDetailStore: (User.ID) -> UserDetailStore
+    // The Model half of the MVI loop: `@Query` observes SwiftData directly,
+    // so any change to any `User`, made anywhere in the app, updates the list
+    // automatically. Intents remain the only way the view talks to the store.
+    @Query(sort: \User.name) private var users: [User]
+    let makeDetailStore: (User) -> UserDetailStore
     let makeAddUserStore: () -> AddUserStore
 
     public init(
         router: AppRouter,
         store: UserListStore,
-        makeDetailStore: @escaping (User.ID) -> UserDetailStore,
+        makeDetailStore: @escaping (User) -> UserDetailStore,
         makeAddUserStore: @escaping () -> AddUserStore
     ) {
         self.router = router
@@ -32,8 +40,8 @@ public struct UserListView: View {
                 }
                 .navigationDestination(for: AppRouter.Route.self) { route in
                     switch route {
-                    case .userDetail(let id):
-                        UserDetailView(store: makeDetailStore(id))
+                    case .userDetail(let user):
+                        UserDetailView(store: makeDetailStore(user))
                     }
                 }
                 .sheet(item: $router.presentedSheet) { sheet in
@@ -51,7 +59,7 @@ public struct UserListView: View {
         if let errorMessage = store.state.errorMessage {
             ContentUnavailableView("Something went wrong", systemImage: "wifi.slash", description: Text(errorMessage))
         } else {
-            List(store.state.users) { user in
+            List(users) { user in
                 Button {
                     store.send(.selectUser(user))
                 } label: {
@@ -60,7 +68,7 @@ public struct UserListView: View {
                 .buttonStyle(.plain)
             }
             .overlay {
-                if store.state.isLoading && store.state.users.isEmpty {
+                if store.state.isLoading && users.isEmpty {
                     ProgressView()
                 }
             }

@@ -1,62 +1,36 @@
 import Domain
 
 // Lightweight use case fakes: each Presentation test only needs to control
-// one operation's result, so a small Sendable struct/class is enough — no
-// need to go through a full fake repository as the Domain/Data tests do.
+// one operation's result, so a small main-actor class is enough — no need to
+// go through a full fake repository as the Domain/Data tests do.
 
-/// Hands the store a stream the test controls: `emit` simulates the repository
-/// broadcasting a change (remote refresh, favorite toggle, new user).
-final class FakeObserveUsersUseCase: ObserveUsersUseCase, @unchecked Sendable {
-    private let stream: AsyncStream<[User]>
-    private let continuation: AsyncStream<[User]>.Continuation
+@MainActor
+final class FakeRefreshUsersUseCase: RefreshUsersUseCase {
+    var errorToThrow: Error?
+    private(set) var calls = 0
 
-    init() {
-        (stream, continuation) = AsyncStream.makeStream(of: [User].self)
-    }
-
-    func execute() async -> AsyncStream<[User]> {
-        stream
-    }
-
-    func emit(_ users: [User]) {
-        continuation.yield(users)
-    }
-}
-
-struct FakeFetchUsersUseCase: FetchUsersUseCase {
-    var usersToReturn: [User] = []
-    var errorToThrow: (any Error & Sendable)?
-
-    func execute() async throws -> [User] {
+    func execute() async throws {
+        calls += 1
         if let errorToThrow { throw errorToThrow }
-        return usersToReturn
     }
 }
 
-struct FakeFetchUserDetailUseCase: FetchUserDetailUseCase {
+@MainActor
+final class FakeToggleFavoriteUseCase: ToggleFavoriteUseCase {
+    var errorToThrow: Error?
+    private(set) var calls: [(user: User, isFavorite: Bool)] = []
+
+    func execute(user: User, isFavorite: Bool) throws {
+        calls.append((user, isFavorite))
+        if let errorToThrow { throw errorToThrow }
+        user.isFavorite = isFavorite
+    }
+}
+
+@MainActor
+final class FakeAddUserUseCase: AddUserUseCase {
     var userToReturn: User?
-    var errorToThrow: (any Error & Sendable)?
-
-    func execute(id: User.ID) async throws -> User {
-        if let errorToThrow { throw errorToThrow }
-        guard let userToReturn else { throw UserRepositoryError.notFound }
-        return userToReturn
-    }
-}
-
-final class FakeToggleFavoriteUseCase: ToggleFavoriteUseCase, @unchecked Sendable {
-    var errorToThrow: (any Error & Sendable)?
-    private(set) var calls: [(id: User.ID, isFavorite: Bool)] = []
-
-    func execute(id: User.ID, isFavorite: Bool) async throws {
-        calls.append((id, isFavorite))
-        if let errorToThrow { throw errorToThrow }
-    }
-}
-
-struct FakeAddUserUseCase: AddUserUseCase {
-    var userToReturn: User?
-    var errorToThrow: (any Error & Sendable)?
+    var errorToThrow: Error?
 
     func execute(name: String, email: String) async throws -> User {
         if let errorToThrow { throw errorToThrow }

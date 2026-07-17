@@ -1,3 +1,4 @@
+import SwiftData
 import Domain
 import Data
 import Presentation
@@ -7,22 +8,25 @@ import Presentation
 /// handed to Presentation as opaque `some UseCase` values.
 @MainActor
 struct CompositionRoot {
-    private let repository: UserRepository = DefaultUserRepository.live()
+    /// Exposed so the App can attach it with `.modelContainer`: the views'
+    /// `@Query` and the repository must share the same container.
+    let modelContainer: ModelContainer
+    private let repository: UserRepository
 
-    func makeUserListStore(router: AppRouter) -> UserListStore {
-        UserListStore(
-            observeUsers: DefaultObserveUsersUseCase(repository: repository),
-            fetchUsers: DefaultFetchUsersUseCase(repository: repository),
-            router: router
-        )
+    init() {
+        // A schema this small failing to open is unrecoverable dev-time
+        // misconfiguration, hence the force-try; a real app would fall back
+        // to an in-memory container and report.
+        modelContainer = try! ModelContainer(for: User.self)
+        repository = DefaultUserRepository.live(context: modelContainer.mainContext)
     }
 
-    func makeUserDetailStore(userID: User.ID, router: AppRouter) -> UserDetailStore {
-        UserDetailStore(
-            userID: userID,
-            fetchUserDetail: DefaultFetchUserDetailUseCase(repository: repository),
-            toggleFavorite: DefaultToggleFavoriteUseCase(repository: repository)
-        )
+    func makeUserListStore(router: AppRouter) -> UserListStore {
+        UserListStore(refreshUsers: DefaultRefreshUsersUseCase(repository: repository), router: router)
+    }
+
+    func makeUserDetailStore(user: User) -> UserDetailStore {
+        UserDetailStore(user: user, toggleFavorite: DefaultToggleFavoriteUseCase(repository: repository))
     }
 
     func makeAddUserStore(router: AppRouter) -> AddUserStore {

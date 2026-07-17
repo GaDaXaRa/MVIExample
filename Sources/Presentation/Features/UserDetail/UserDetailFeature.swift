@@ -3,18 +3,21 @@ import Domain
 
 // MARK: - Model
 
-public struct UserDetailState: Equatable, Sendable {
-    public var user: User?
-    public var isLoading = false
+/// The user arrives already loaded (it is the navigation payload), so there
+/// is no loading state and no not-found state. The `@Model` object is itself
+/// observable: mutating it re-renders this screen and the list at once.
+public struct UserDetailState {
+    public var user: User
     public var errorMessage: String?
 
-    public init() {}
+    public init(user: User) {
+        self.user = user
+    }
 }
 
 // MARK: - Intent
 
 public enum UserDetailIntent {
-    case onAppear
     case toggleFavorite
 }
 
@@ -23,54 +26,24 @@ public enum UserDetailIntent {
 @Observable
 @MainActor
 public final class UserDetailStore: Store {
-    public private(set) var state = UserDetailState()
+    public private(set) var state: UserDetailState
 
-    private let userID: User.ID
-    private let fetchUserDetail: FetchUserDetailUseCase
     private let toggleFavorite: ToggleFavoriteUseCase
 
-    public init(
-        userID: User.ID,
-        fetchUserDetail: FetchUserDetailUseCase,
-        toggleFavorite: ToggleFavoriteUseCase
-    ) {
-        self.userID = userID
-        self.fetchUserDetail = fetchUserDetail
+    public init(user: User, toggleFavorite: ToggleFavoriteUseCase) {
+        self.state = UserDetailState(user: user)
         self.toggleFavorite = toggleFavorite
     }
 
     public func send(_ intent: UserDetailIntent) {
         switch intent {
-        case .onAppear:
-            Task { await load() }
         case .toggleFavorite:
-            Task { await flipFavorite() }
-        }
-    }
-
-    private func load() async {
-        state.isLoading = true
-        state.errorMessage = nil
-        do {
-            state.user = try await fetchUserDetail.execute(id: userID)
-        } catch {
-            state.errorMessage = error.localizedDescription
-        }
-        state.isLoading = false
-    }
-
-    /// Optimistic update: flip the UI immediately, roll back only if the
-    /// use case actually fails. Demonstrates a common async UI pattern
-    /// without blocking the view on the round trip.
-    private func flipFavorite() async {
-        guard let user = state.user else { return }
-        let newValue = !user.isFavorite
-        state.user?.isFavorite = newValue
-        do {
-            try await toggleFavorite.execute(id: user.id, isFavorite: newValue)
-        } catch {
-            state.user?.isFavorite = !newValue
-            state.errorMessage = error.localizedDescription
+            // Synchronous and local: no optimistic update or rollback needed.
+            do {
+                try toggleFavorite.execute(user: state.user, isFavorite: !state.user.isFavorite)
+            } catch {
+                state.errorMessage = error.localizedDescription
+            }
         }
     }
 }

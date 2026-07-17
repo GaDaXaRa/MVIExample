@@ -220,11 +220,12 @@ struct CompositionRoot {
 
 If a change made in one feature must show up in another (e.g. a favorite toggled
 in the detail screen, a user added from the modal form), don't wire callbacks
-between stores. The repository exposes an `AsyncStream` of the data
-(`observeUsers()`), and any screen that keeps that data visible subscribes to it
-from its own store when the `.onAppear` intent arrives (see
-`UserListStore.startObservingIfNeeded`). One source of truth, zero cross-feature
-coupling — and no Combine, NotificationCenter, or event bus either.
+between stores. SwiftData is the single source of truth: entities are `@Model`
+classes, mutations go through intents → store → use case → repository →
+`ModelContext`, and any screen that keeps that data visible reads it with
+`@Query`, which re-renders automatically on any change. One source of truth, zero
+cross-feature coupling — and no streams, Combine, NotificationCenter, or event
+bus either.
 
 ## 8. Testing recipe
 

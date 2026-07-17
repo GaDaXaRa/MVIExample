@@ -2,6 +2,7 @@ import Testing
 @testable import Domain
 
 @Suite("AddUserUseCase")
+@MainActor
 struct AddUserUseCaseTests {
     @Test("rejects an empty name")
     func rejectsEmptyName() async throws {
@@ -32,8 +33,7 @@ struct AddUserUseCaseTests {
         let user = try await sut.execute(name: "  Ada Lovelace  ", email: "ada@example.com")
 
         #expect(user.name == "Ada Lovelace")
-        let calls = await repository.addUserCalls
-        #expect(calls.count == 1)
-        #expect(calls.first?.name == "Ada Lovelace")
+        #expect(repository.addUserCalls.count == 1)
+        #expect(repository.addUserCalls.first?.name == "Ada Lovelace")
     }
 }

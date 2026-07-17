@@ -1,5 +1,6 @@
-public protocol ToggleFavoriteUseCase: Sendable {
-    func execute(id: User.ID, isFavorite: Bool) async throws
+@MainActor
+public protocol ToggleFavoriteUseCase {
+    func execute(user: User, isFavorite: Bool) throws
 }
 
 public struct DefaultToggleFavoriteUseCase: ToggleFavoriteUseCase {
@@ -9,7 +10,7 @@ public struct DefaultToggleFavoriteUseCase: ToggleFavoriteUseCase {
         self.repository = repository
     }
 
-    public func execute(id: User.ID, isFavorite: Bool) async throws {
-        try await repository.setFavorite(id: id, isFavorite: isFavorite)
+    public func execute(user: User, isFavorite: Bool) throws {
+        try repository.setFavorite(user, isFavorite: isFavorite)
     }
 }

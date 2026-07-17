@@ -1,49 +1,54 @@
+import Foundation
+import SwiftData
 import Domain
 
-/// Implements the Domain-owned `UserRepository` contract by coordinating a
-/// remote source and a local cache. Nothing outside this layer knows that
-/// two data sources are involved.
-public struct DefaultUserRepository: UserRepository {
+/// Implements the Domain-owned `UserRepository` contract on top of SwiftData's
+/// main context plus a remote source. There is no separate cache type any
+/// more: the `ModelContext` *is* the local storage, and `@Query` on the view
+/// side replaces hand-rolled change broadcasting.
+@MainActor
+public final class DefaultUserRepository: UserRepository {
+    private let context: ModelContext
     private let remote: RemoteUserDataSource
-    private let local: LocalUserStore
 
-    init(remote: RemoteUserDataSource, local: LocalUserStore) {
+    init(context: ModelContext, remote: RemoteUserDataSource) {
+        self.context = context
         self.remote = remote
-        self.local = local
     }
 
-    /// Convenience factory: the concrete data sources are an implementation
-    /// detail of this module, so the public initializer only takes what the
-    /// composition root actually needs to decide.
-    public static func live() -> DefaultUserRepository {
-        DefaultUserRepository(remote: MockRemoteUserDataSource(), local: LocalUserStore())
+    /// Convenience factory: the concrete remote source is an implementation
+    /// detail of this module, so the composition root only provides the context.
+    public static func live(context: ModelContext) -> DefaultUserRepository {
+        DefaultUserRepository(context: context, remote: MockRemoteUserDataSource())
     }
 
-    public func observeUsers() async -> AsyncStream<[User]> {
-        await local.observe()
-    }
-
-    public func fetchUsers() async throws -> [User] {
+    public func refreshUsers() async throws {
         let dtos = try await remote.fetchUsers()
-        await local.cache(dtos.map { $0.toDomain() })
-        return await local.allUsers()
-    }
-
-    public func fetchUser(id: User.ID) async throws -> User {
-        guard let user = await local.user(id: id) else {
-            throw UserRepositoryError.notFound
+        let existingByID = Dictionary(
+            uniqueKeysWithValues: try context.fetch(FetchDescriptor<User>()).map { ($0.id, $0) }
+        )
+        for dto in dtos {
+            if let user = existingByID[dto.id] {
+                // Never overwrite a locally-known favorite with stale remote data.
+                user.name = dto.name
+                user.email = dto.email
+            } else {
+                context.insert(dto.toDomain())
+            }
         }
-        return user
+        try context.save()
     }
 
     public func addUser(name: String, email: String) async throws -> User {
         let dto = try await remote.createUser(name: name, email: email)
         let user = dto.toDomain()
-        await local.cache(user)
+        context.insert(user)
+        try context.save()
         return user
     }
 
-    public func setFavorite(id: User.ID, isFavorite: Bool) async throws {
-        await local.setFavorite(id: id, isFavorite: isFavorite)
+    public func setFavorite(_ user: User, isFavorite: Bool) throws {
+        user.isFavorite = isFavorite
+        try context.save()
     }
 }

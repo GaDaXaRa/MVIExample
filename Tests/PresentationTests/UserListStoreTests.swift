@@ -6,35 +6,16 @@ import Domain
 @Suite("UserListStore")
 @MainActor
 struct UserListStoreTests {
-    @Test("onAppear subscribes to the stream and renders whatever it emits")
-    func onAppearRendersStreamEmissions() async throws {
-        let users = [User(name: "Ada Lovelace", email: "ada@example.com")]
-        let observe = FakeObserveUsersUseCase()
-        let sut = UserListStore(observeUsers: observe, fetchUsers: FakeFetchUsersUseCase(), router: AppRouter())
+    @Test("onAppear triggers a remote refresh")
+    func onAppearTriggersRefresh() async throws {
+        let refresh = FakeRefreshUsersUseCase()
+        let sut = UserListStore(refreshUsers: refresh, router: AppRouter())
 
         sut.send(.onAppear)
-        observe.emit(users)
-        try await waitUntil { !sut.state.users.isEmpty }
+        try await waitUntil { refresh.calls == 1 }
 
-        #expect(sut.state.users == users)
+        #expect(refresh.calls == 1)
         #expect(sut.state.errorMessage == nil)
-    }
-
-    @Test("a later emission (e.g. a favorite toggled in the detail screen) replaces the list")
-    func laterEmissionReplacesList() async throws {
-        var user = User(name: "Ada Lovelace", email: "ada@example.com")
-        let observe = FakeObserveUsersUseCase()
-        let sut = UserListStore(observeUsers: observe, fetchUsers: FakeFetchUsersUseCase(), router: AppRouter())
-
-        sut.send(.onAppear)
-        observe.emit([user])
-        try await waitUntil { !sut.state.users.isEmpty }
-
-        user.isFavorite = true
-        observe.emit([user])
-        try await waitUntil { sut.state.users.first?.isFavorite == true }
-
-        #expect(sut.state.users == [user])
     }
 
     @Test("a failed refresh surfaces the error message")
@@ -42,34 +23,32 @@ struct UserListStoreTests {
         struct SampleError: Error, Sendable, LocalizedError {
             var errorDescription: String? { "boom" }
         }
-        let sut = UserListStore(
-            observeUsers: FakeObserveUsersUseCase(),
-            fetchUsers: FakeFetchUsersUseCase(errorToThrow: SampleError()),
-            router: AppRouter()
-        )
+        let refresh = FakeRefreshUsersUseCase()
+        refresh.errorToThrow = SampleError()
+        let sut = UserListStore(refreshUsers: refresh, router: AppRouter())
 
-        sut.send(.onAppear)
+        sut.send(.refresh)
         try await waitUntil { sut.state.errorMessage != nil }
 
-        #expect(sut.state.users.isEmpty)
         #expect(sut.state.errorMessage == "boom")
+        #expect(sut.state.isLoading == false)
     }
 
     @Test("selecting a user pushes a userDetail route onto the router")
     func selectUserPushesRoute() {
         let router = AppRouter()
-        let sut = UserListStore(observeUsers: FakeObserveUsersUseCase(), fetchUsers: FakeFetchUsersUseCase(), router: router)
+        let sut = UserListStore(refreshUsers: FakeRefreshUsersUseCase(), router: router)
         let user = User(name: "Ada Lovelace", email: "ada@example.com")
 
         sut.send(.selectUser(user))
 
-        #expect(router.path == [.userDetail(user.id)])
+        #expect(router.path == [.userDetail(user)])
     }
 
     @Test("tapping add presents the addUser sheet")
     func addUserTappedPresentsSheet() {
         let router = AppRouter()
-        let sut = UserListStore(observeUsers: FakeObserveUsersUseCase(), fetchUsers: FakeFetchUsersUseCase(), router: router)
+        let sut = UserListStore(refreshUsers: FakeRefreshUsersUseCase(), router: router)
 
         sut.send(.addUserTapped)
 
