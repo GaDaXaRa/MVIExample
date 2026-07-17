@@ -11,9 +11,10 @@ struct MVIExampleApp: App {
             UserListView(
                 router: router,
                 store: composition.makeUserListStore(router: router),
-                makeDetailStore: { id in composition.makeUserDetailStore(userID: id, router: router) },
+                makeDetailStore: { user in composition.makeUserDetailStore(user: user) },
                 makeAddUserStore: { composition.makeAddUserStore(router: router) }
             )
+            .modelContainer(composition.modelContainer)
         }
     }
 }

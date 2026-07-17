@@ -1,17 +1,18 @@
 /// A use case is a single, named business operation. Stores call use cases,
 /// never repositories directly, so business rules stay out of the Presentation layer.
-public protocol FetchUsersUseCase: Sendable {
-    func execute() async throws -> [User]
+@MainActor
+public protocol RefreshUsersUseCase {
+    func execute() async throws
 }
 
-public struct DefaultFetchUsersUseCase: FetchUsersUseCase {
+public struct DefaultRefreshUsersUseCase: RefreshUsersUseCase {
     private let repository: UserRepository
 
     public init(repository: UserRepository) {
         self.repository = repository
     }
 
-    public func execute() async throws -> [User] {
-        try await repository.fetchUsers()
+    public func execute() async throws {
+        try await repository.refreshUsers()
     }
 }

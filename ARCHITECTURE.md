@@ -22,7 +22,7 @@ The project is a single Swift Package (`Package.swift`) with three library targe
 plus a fourth, native Xcode target for the app itself:
 
 ```
-Domain            <- no dependencies
+Domain            <- no target dependencies (imports SwiftData for @Model, see §3)
 Data              <- depends on Domain
 Presentation      <- depends on Domain (never Data)
 App               <- depends on Domain, Data, Presentation (composition root)
@@ -59,20 +59,28 @@ project, allowed to import all three layers at once (see §7).
 
 ## 3. Domain: entities, repository contracts, use cases
 
-`Sources/Domain` is the innermost layer. It imports nothing but `Foundation` and
-knows nothing about SwiftUI, networking, or persistence.
+`Sources/Domain` is the innermost layer. It knows nothing about SwiftUI or
+networking, with one deliberate exception: the entity is a SwiftData `@Model`.
 
-**Entity** — plain data, no annotations tying it to a framework:
+**Entity** — a `@Model` class, making one type simultaneously the schema, the
+persisted row, the observable object views react to, and the navigation payload:
 
 ```swift
 // Sources/Domain/Entities/User.swift
-public struct User: Identifiable, Equatable, Sendable, Codable {
-    public let id: UUID
+@Model
+public final class User {
+    public private(set) var id: UUID
     public var name: String
     public var email: String
     public var isFavorite: Bool
 }
 ```
+
+This trades a bit of Clean-Architecture purity (Domain imports SwiftData) for the
+deletion of an entire category of code: DTO↔entity mapping for storage, a local
+cache actor, and every hand-rolled change-propagation mechanism (streams,
+callbacks) between features. If storage ever moved off SwiftData, `User` would
+become a plain struct again and a mapping layer would return to Data.
 
 **Repository protocol** — owned by Domain, implemented by Data. Domain defines the
 contract in terms it cares about; it has no idea two data sources exist behind it:
@@ -121,8 +129,8 @@ use case makes it impossible to bypass.
 ## 4. Data: DTOs, data sources, repository implementation
 
 `Sources/Data` depends on Domain and implements its contracts. Nothing outside this
-module knows how many data sources are involved or what a DTO looks like — `UserDTO`,
-`RemoteUserDataSource`, and `LocalUserStore` are all `internal`, not `public`.
+module knows how many data sources are involved or what a DTO looks like — `UserDTO`
+and `RemoteUserDataSource` are `internal`, not `public`.
 
 **DTO** — the wire/storage shape, decoupled from the Domain entity so an API change
 doesn't ripple upward:
@@ -150,23 +158,37 @@ actor MockRemoteUserDataSource: RemoteUserDataSource {
 }
 ```
 
-**Repository implementation** — coordinates the two sources and applies the one
-policy decision that belongs at this level: a local favorite flag must never be
-clobbered by a stale remote refresh.
+**Repository implementation** — coordinates the remote source with SwiftData's
+`ModelContext` (the local storage) and applies the one policy decision that belongs
+at this level: a local favorite flag must never be clobbered by a stale remote
+refresh.
 
 ```swift
 // Sources/Data/Repositories/DefaultUserRepository.swift
-public func fetchUsers() async throws -> [User] {
+public func refreshUsers() async throws {
     let dtos = try await remote.fetchUsers()
-    await local.cache(dtos.map { $0.toDomain() })
-    return await local.allUsers().sorted { $0.name < $1.name }
+    let existingByID = Dictionary(
+        uniqueKeysWithValues: try context.fetch(FetchDescriptor<User>()).map { ($0.id, $0) }
+    )
+    for dto in dtos {
+        if let user = existingByID[dto.id] {
+            user.name = dto.name   // favorite deliberately untouched
+            user.email = dto.email
+        } else {
+            context.insert(dto.toDomain())
+        }
+    }
+    try context.save()
 }
 ```
 
-`LocalUserStore.cache(_:)` is where that policy actually lives — see
-`Sources/Data/DataSources/LocalUserStore.swift` for the merge logic. This is a
-concrete example of why Data, not Domain, owns *how* data is reconciled: it is a
-persistence-layer concern, not a business rule.
+Note there is no *read* method in the repository: reading is the `@Query` property
+wrapper's job on the view side (§5). The repository contract covers mutations only —
+refresh, add, set favorite — which is why the whole hand-rolled cache/observation
+layer could be deleted. Because storage is persisted (not an in-memory cache),
+favorites and locally created users survive app relaunches, and the mock remote must
+return stable seed UUIDs so each launch merges into existing rows instead of
+duplicating them.
 
 ## 5. Presentation: the MVI loop
 
@@ -230,37 +252,33 @@ public final class UserListStore: Store {
 
     public func send(_ intent: UserListIntent) {
         switch intent {
-        case .onAppear:
-            startObservingIfNeeded()
-            Task { await refresh() }
-        case .refresh: Task { await refresh() }
-        case .selectUser(let user): router.push(.userDetail(user.id))
+        case .onAppear, .refresh: Task { await refresh() }
+        case .selectUser(let user): router.push(.userDetail(user))
         case .addUserTapped: router.present(.addUser)
-        }
-    }
-
-    /// `state.users` has a single source of truth: the repository's
-    /// observation stream, so changes made anywhere in the app (favorite
-    /// toggles, new users) show up here automatically.
-    private func startObservingIfNeeded() {
-        guard observationTask == nil else { return }
-        observationTask = Task { [weak self] in
-            guard let stream = await self?.observeUsers.execute() else { return }
-            for await users in stream {
-                guard let self else { return }
-                self.state.users = users
-            }
         }
     }
 
     private func refresh() async {
         state.isLoading = true
-        do { _ = try await fetchUsers.execute() }
+        do { try await refreshUsers.execute() }
         catch { state.errorMessage = error.localizedDescription }
         state.isLoading = false
     }
 }
 ```
+
+Note what is *not* in the state: the users. They reach the view through `@Query`,
+which observes SwiftData directly — that is the Model half of the MVI loop:
+
+```swift
+// Sources/Presentation/Features/UserList/UserListView.swift
+@Query(sort: \User.name) private var users: [User]
+```
+
+A favorite toggled on the detail screen or a user added from the sheet updates the
+list automatically: SwiftData is the single source of truth and `@Query` is its
+change-propagation mechanism, replacing any hand-rolled stream or cross-feature
+callback. Intents remain the only way the view talks to the store.
 
 Two rules keep this pattern honest:
 
@@ -351,18 +369,19 @@ and every test in `PresentationTests` would be untouched.
 - **`async/await` everywhere** a boundary crosses (use case → repository → data
   source) instead of completion handlers — errors propagate with `throws`, and
   cancellation is automatic when a `Task` is cancelled.
-- **`actor` for shared mutable state** (`LocalUserStore`, `MockRemoteUserDataSource`)
-  instead of locks or `DispatchQueue`. The compiler rejects unsynchronized access at
-  compile time rather than you finding a race in production.
-- **`Sendable` on every cross-layer type** (`User`, the repository/use case
-  protocols) so the compiler — not a code reviewer — catches a type that isn't safe
-  to pass between the Store's `@MainActor` context and an actor.
+- **`actor` for shared mutable state** (`MockRemoteUserDataSource`) instead of locks
+  or `DispatchQueue`. The compiler rejects unsynchronized access at compile time
+  rather than you finding a race in production.
+- **`@MainActor` instead of `Sendable` on the cross-layer contracts** (repository
+  and use case protocols): SwiftData `@Model` objects are not `Sendable`, and every
+  consumer — stores, use cases, the `ModelContext` — already lives on the main
+  actor. Only the remote data source crosses an actor boundary, and it exchanges
+  `Sendable` DTOs, never models.
 - **`@MainActor` on every Store and the Router**, since they drive `@Observable`
   state that SwiftUI reads on the main thread. `send(_:)` stays synchronous; the
   `Task { await ... }` inside it is where the actual hop to background work happens.
-- **Optimistic updates** (`UserDetailStore.flipFavorite`) show a common pattern for
-  async UI: mutate `state` immediately, await the use case, roll back only on
-  failure — the UI never blocks on the round trip.
+  Local-only mutations like toggling a favorite are synchronous end to end, so
+  there is no optimistic-update/rollback dance anywhere.
 
 ## 9. Testing strategy
 
@@ -397,9 +416,8 @@ fast and not flaky:
 
 ```swift
 sut.send(.onAppear)
-observe.emit(users)
-try await waitUntil { !sut.state.users.isEmpty }
-#expect(sut.state.users == users)
+try await waitUntil { refresh.calls == 1 }
+#expect(sut.state.errorMessage == nil)
 ```
 
 Run everything with `swift test`. Each of the three test targets can also be run in
@@ -411,7 +429,7 @@ isolation (`swift test --filter DomainTests`) since they don't depend on each ot
    `Default...` implementation, extend `UserRepository` only if the operation is
    genuinely a persistence concern.
 2. **Data**: implement the new repository method in `DefaultUserRepository`,
-   touching `RemoteUserDataSource`/`LocalUserStore` as needed.
+   touching `RemoteUserDataSource` as needed.
 3. **Presentation**: create `<Feature>State`, `<Feature>Intent`, and a
    `@MainActor @Observable final class <Feature>Store: Store` in one
    `<Feature>Feature.swift` file, then a matching `<Feature>View.swift`.

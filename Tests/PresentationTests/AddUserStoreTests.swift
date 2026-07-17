@@ -21,8 +21,9 @@ struct AddUserStoreTests {
     func successfulSaveDismisses() async throws {
         let router = AppRouter()
         router.present(.addUser)
-        let savedUser = User(name: "Ada Lovelace", email: "ada@example.com")
-        let sut = AddUserStore(addUser: FakeAddUserUseCase(userToReturn: savedUser), router: router)
+        let addUser = FakeAddUserUseCase()
+        addUser.userToReturn = User(name: "Ada Lovelace", email: "ada@example.com")
+        let sut = AddUserStore(addUser: addUser, router: router)
 
         sut.send(.save)
         try await waitUntil { router.presentedSheet == nil }
@@ -49,7 +50,7 @@ struct AddUserStoreTests {
         }
         let router = AppRouter()
         router.present(.addUser)
-        var fake = FakeAddUserUseCase()
+        let fake = FakeAddUserUseCase()
         fake.errorToThrow = SampleError()
         let sut = AddUserStore(addUser: fake, router: router)
 

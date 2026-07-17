@@ -9,7 +9,9 @@ import Domain
 @MainActor
 public final class AppRouter {
     public enum Route: Hashable {
-        case userDetail(User.ID)
+        // The @Model object itself is the payload: the detail screen receives
+        // it already loaded, so there is no id-based re-fetch.
+        case userDetail(User)
     }
 
     public enum Sheet: Identifiable {

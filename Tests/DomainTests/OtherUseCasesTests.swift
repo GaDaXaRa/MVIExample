@@ -2,48 +2,33 @@ import Testing
 import Foundation
 @testable import Domain
 
-@Suite("FetchUsersUseCase")
-struct FetchUsersUseCaseTests {
-    @Test("returns whatever the repository returns")
-    func passesThroughRepositoryResult() async throws {
+@Suite("RefreshUsersUseCase")
+@MainActor
+struct RefreshUsersUseCaseTests {
+    @Test("forwards the refresh to the repository")
+    func forwardsRefresh() async throws {
         let repository = FakeUserRepository()
-        await repository.set(usersToReturn: [User(name: "Grace Hopper", email: "grace@example.com")])
-        let sut = DefaultFetchUsersUseCase(repository: repository)
+        let sut = DefaultRefreshUsersUseCase(repository: repository)
 
-        let users = try await sut.execute()
+        try await sut.execute()
 
-        #expect(users.map(\.name) == ["Grace Hopper"])
-    }
-}
-
-@Suite("ObserveUsersUseCase")
-struct ObserveUsersUseCaseTests {
-    @Test("hands back the repository's stream unchanged")
-    func passesThroughRepositoryStream() async throws {
-        let repository = FakeUserRepository()
-        await repository.set(usersToReturn: [User(name: "Grace Hopper", email: "grace@example.com")])
-        let sut = DefaultObserveUsersUseCase(repository: repository)
-
-        var iterator = await sut.execute().makeAsyncIterator()
-        let users = await iterator.next()
-
-        #expect(users?.map(\.name) == ["Grace Hopper"])
+        #expect(repository.refreshCalls == 1)
     }
 }
 
 @Suite("ToggleFavoriteUseCase")
+@MainActor
 struct ToggleFavoriteUseCaseTests {
     @Test("forwards the new favorite value to the repository")
-    func forwardsFavoriteValue() async throws {
+    func forwardsFavoriteValue() throws {
         let repository = FakeUserRepository()
         let sut = DefaultToggleFavoriteUseCase(repository: repository)
-        let id = UUID()
+        let user = User(name: "Ada Lovelace", email: "ada@example.com", isFavorite: false)
 
-        try await sut.execute(id: id, isFavorite: true)
+        try sut.execute(user: user, isFavorite: true)
 
-        let updates = await repository.favoriteUpdates
-        #expect(updates.count == 1)
-        #expect(updates.first?.id == id)
-        #expect(updates.first?.isFavorite == true)
+        #expect(repository.favoriteUpdates.count == 1)
+        #expect(repository.favoriteUpdates.first?.user === user)
+        #expect(user.isFavorite == true)
     }
 }
