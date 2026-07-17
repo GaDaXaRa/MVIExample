@@ -33,7 +33,7 @@ public final class DefaultUserRepository: UserRepository {
                 user.name = dto.name
                 user.email = dto.email
             } else {
-                context.insert(dto.toDomain())
+                context.insert(dto.toDomain)
             }
         }
         try context.save()
@@ -41,7 +41,7 @@ public final class DefaultUserRepository: UserRepository {
 
     public func addUser(name: String, email: String) async throws -> User {
         let dto = try await remote.createUser(name: name, email: email)
-        let user = dto.toDomain()
+        let user = dto.toDomain
         context.insert(user)
         try context.save()
         return user
@@ -50,5 +50,11 @@ public final class DefaultUserRepository: UserRepository {
     public func setFavorite(_ user: User, isFavorite: Bool) throws {
         user.isFavorite = isFavorite
         try context.save()
+    }
+}
+
+private extension UserDTO {
+    var toDomain: User {
+        User(id: id, name: name, email: email)
     }
 }
