@@ -30,9 +30,9 @@ public final class UserListStore: Store {
     public private(set) var state = UserListState()
 
     private let refreshUsers: RefreshUsersUseCase
-    private let router: AppRouter
+    private let router: any Router
 
-    public init(refreshUsers: RefreshUsersUseCase, router: AppRouter) {
+    public init(refreshUsers: RefreshUsersUseCase, router: any Router) {
         self.refreshUsers = refreshUsers
         self.router = router
     }
@@ -42,9 +42,9 @@ public final class UserListStore: Store {
         case .onAppear, .refresh:
             Task { await refresh() }
         case .selectUser(let user):
-            router.push(.userDetail(user))
+            router.send(.push(UserDetailRoute(user: user)))
         case .addUserTapped:
-            router.present(.addUser)
+            router.send(.present(.addUser))
         }
     }
 

@@ -28,9 +28,9 @@ public final class AddUserStore: Store {
     public private(set) var state = AddUserState()
 
     private let addUser: AddUserUseCase
-    private let router: AppRouter
+    private let router: any Router
 
-    public init(addUser: AddUserUseCase, router: AppRouter) {
+    public init(addUser: AddUserUseCase, router: any Router) {
         self.addUser = addUser
         self.router = router
     }
@@ -42,7 +42,7 @@ public final class AddUserStore: Store {
         case .emailChanged(let email):
             state.email = email
         case .cancel:
-            router.dismissSheet()
+            router.send(.dismissSheet)
         case .save:
             Task { await save() }
         }
@@ -52,10 +52,10 @@ public final class AddUserStore: Store {
         state.isSaving = true
         state.errorMessage = nil
         do {
-            // No callback to the list: the repository caches the new user and
-            // the list's observation stream picks it up.
+            // No callback to the list: the repository inserts the new user
+            // into SwiftData and the list's @Query picks it up.
             _ = try await addUser.execute(name: state.name, email: state.email)
-            router.dismissSheet()
+            router.send(.dismissSheet)
         } catch {
             state.errorMessage = error.localizedDescription
         }

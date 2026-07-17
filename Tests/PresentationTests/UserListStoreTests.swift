@@ -41,7 +41,8 @@ struct UserListStoreTests {
 
         sut.send(.selectUser(user))
 
-        #expect(router.path == [.userDetail(user)])
+        #expect(router.routes == [AnyHashable(UserDetailRoute(user: user))])
+        #expect(router.path.count == 1)
     }
 
     @Test("tapping add presents the addUser sheet")
@@ -51,7 +52,7 @@ struct UserListStoreTests {
 
         sut.send(.addUserTapped)
 
-        #expect(router.presentedSheet?.id == AppRouter.Sheet.addUser.id)
+        #expect(router.presentedSheet?.id == Sheet.addUser.id)
     }
 }
 

@@ -38,12 +38,9 @@ public struct UserListView: View {
                         }
                     }
                 }
-                .navigationDestination(for: AppRouter.Route.self) { route in
-                    switch route {
-                    case .userDetail(let user):
-                        UserDetailView(store: makeDetailStore(user))
-                    }
-                }
+                // One registration per feature whose screens can be pushed
+                // from here — decentralized, and fully typed (no AnyView).
+                .userDetailDestination(makeStore: makeDetailStore)
                 .sheet(item: $router.presentedSheet) { sheet in
                     switch sheet {
                     case .addUser:

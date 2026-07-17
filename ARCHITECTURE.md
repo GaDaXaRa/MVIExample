@@ -253,8 +253,8 @@ public final class UserListStore: Store {
     public func send(_ intent: UserListIntent) {
         switch intent {
         case .onAppear, .refresh: Task { await refresh() }
-        case .selectUser(let user): router.push(.userDetail(user))
-        case .addUserTapped: router.present(.addUser)
+        case .selectUser(let user): router.send(.push(UserDetailRoute(user: user)))
+        case .addUserTapped: router.send(.present(.addUser))
         }
     }
 
@@ -310,33 +310,61 @@ Instead, navigation lives in its own observable object, and Intent handlers call
 into it directly, exactly like any other side effect (analogous to calling a use
 case):
 
+Navigation gets the same shape as every feature: a closed vocabulary of intents
+behind a single entry point, and stores depend on the `Router` **protocol**, so
+tests can record intents with a spy instead of driving a real stack:
+
 ```swift
 // Sources/Presentation/Core/AppRouter.swift
-@Observable
-public final class AppRouter {
-    public enum Route: Hashable { case userDetail(User) }
-    public enum Sheet: Identifiable { case addUser; ... }
+public protocol Router: AnyObject {
+    func send(_ intent: RouterIntent)
+}
 
-    public var path: [Route] = []
-    public var presentedSheet: Sheet?
-
-    public func push(_ route: Route) { path.append(route) }
-    public func present(_ sheet: Sheet) { presentedSheet = sheet }
+public enum RouterIntent {
+    case push(any Route)
+    case pop
+    case popToRoot
+    case popTo(any Route)
+    case present(Sheet)
+    case dismissSheet
 }
 ```
 
-The View binds directly to the router's arrays for `NavigationStack` (**push**) and
-`.sheet(item:)` (**modal**):
+Pushed screens are described by **route values, not view builders**: each feature
+declares its own small `Hashable` struct conforming to `Route` and registers the
+matching view with a `.navigationDestination` extension. There is no central enum
+of screens (features stay decoupled) and no `AnyView` (the path carries values;
+SwiftUI builds each destination fully typed). Because routes are values, they stay
+comparable — `popTo` works by equality — and could be made `Codable` for deep
+links. `AppRouter` keeps a `routes` mirror next to the opaque `NavigationPath`,
+reconciled in `didSet` when the user pops interactively:
+
+```swift
+// Sources/Presentation/Features/UserDetail/UserDetailView.swift
+public nonisolated struct UserDetailRoute: Route {
+    public let user: User
+}
+
+public extension View {
+    func userDetailDestination(
+        makeStore: @escaping (User) -> any Store<UserDetailState, UserDetailIntent>
+    ) -> some View {
+        navigationDestination(for: UserDetailRoute.self) { route in
+            UserDetailView(store: makeStore(route.user))
+        }
+    }
+}
+```
+
+Modal presentations are ephemeral (no deep links, no restoration), so a plain
+`Sheet` enum remains the pragmatic choice for them. The root view binds the
+router's state and applies one destination registration per feature:
 
 ```swift
 // Sources/Presentation/Features/UserList/UserListView.swift
 NavigationStack(path: $router.path) {
     content
-        .navigationDestination(for: AppRouter.Route.self) { route in
-            switch route {
-            case .userDetail(let user): UserDetailView(store: makeDetailStore(user))
-            }
-        }
+        .userDetailDestination(makeStore: makeDetailStore)
         .sheet(item: $router.presentedSheet) { sheet in
             switch sheet {
             case .addUser: AddUserView(store: makeAddUserStore())
@@ -444,7 +472,9 @@ isolation (`swift test --filter DomainTests`) since they don't depend on each ot
 3. **Presentation**: create `<Feature>State`, `<Feature>Intent`, and a
    `@MainActor @Observable final class <Feature>Store: Store` in one
    `<Feature>Feature.swift` file, then a matching `<Feature>View.swift`.
-4. **Navigation**: add a case to `AppRouter.Route` (push) or `AppRouter.Sheet`
+4. **Navigation**: declare a `nonisolated struct <Feature>Route: Route` plus a
+   `.navigationDestination` registration extension in the feature, and apply it
+   in the root view (push) — or add a case to `Sheet`
    (modal) if the feature is reachable from another screen.
 5. **App**: add a `make<Feature>Store(...)` factory method to `CompositionRoot`.
 6. **Tests**: one test file per new Domain use case, one per new repository

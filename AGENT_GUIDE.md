@@ -120,11 +120,13 @@ public final class AppRouter {
 }
 ```
 
-A Store's `send(_:)` calls `router.push`/`router.present` directly for navigation
-Intents — it never returns a "navigation event" for the View to interpret. The root
-view binds `NavigationStack(path: $router.path)` with `.navigationDestination(for:
-AppRouter.Route.self)` for **push**, and `.sheet(item: $router.presentedSheet)` for
-**modal**. The task must include at least one of each — if the user's feature list
+A Store's `send(_:)` calls `router.send(.push(...))`/`router.send(.present(...))`
+directly for navigation Intents — it never returns a "navigation event" for the
+View to interpret. Pushed screens are described by per-feature `Route` values
+(`nonisolated struct <Feature>Route: Route`) registered with a
+`.navigationDestination` extension the root view applies; the root view binds
+`NavigationStack(path: $router.path)` for **push** and
+`.sheet(item: $router.presentedSheet)` for **modal**. The task must include at least one of each — if the user's feature list
 doesn't naturally produce both, add a minimal second screen/modal that does (e.g. an
 "About" sheet, or a settings row) rather than skipping the requirement.
 
