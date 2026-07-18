@@ -8,9 +8,13 @@ The app itself is intentionally small — a user directory with a list, a detail
 screen reached by **push navigation**, and an "add user" form reached by a
 **modal sheet** — so the architecture, not the feature set, is the point.
 
-For a full explanation of the architecture with code excerpts, see
-**[ARCHITECTURE.md](ARCHITECTURE.md)**. To have an AI agent replicate this same
-pattern for a different app, see **[AGENT_GUIDE.md](AGENT_GUIDE.md)**.
+For a full explanation of the architecture with code excerpts, see the **DocC
+catalog** in the `Presentation` target (`Sources/Presentation/Documentation.docc/`)
+— open it in Xcode's documentation viewer or run
+`swift package generate-documentation --target Presentation`.
+[ARCHITECTURE.md](ARCHITECTURE.md) points to it and lists the articles. To have an
+AI agent replicate this same pattern for a different app, see
+**[AGENT_GUIDE.md](AGENT_GUIDE.md)**.
 
 ## What it does
 
