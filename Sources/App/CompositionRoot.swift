@@ -29,6 +29,7 @@ struct CompositionRoot {
         AppTab(id: "Team", systemImage: "person.2.badge.gearshape"),
         AppTab(id: "Directory", systemImage: "book.pages")
     ]
+    let deepLink: DeepLinkCoordinator
     private let repository: UserRepository
 
     init() {
@@ -38,6 +39,11 @@ struct CompositionRoot {
         modelContainer = try! ModelContainer(for: User.self)
         let repository = DefaultUserRepository.live(context: modelContainer.mainContext)
         self.repository = repository
+        deepLink = DeepLinkCoordinator(
+            routers: tabs.map(\.router),
+            session: session,
+            fetchUser: DefaultFetchUserUseCase(repository: repository)
+        )
 
         // Route -> view bindings. Presentation mode is not part of the
         // registration, and each builder receives the router of the wireframe

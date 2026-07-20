@@ -1,3 +1,4 @@
+import Foundation
 import Domain
 @testable import Presentation
 
@@ -31,6 +32,14 @@ final class UserDetailFlowSpy: UserDetailFlow {
 
     func didRequestRelatedPicker(for user: User) { pickerRequests.append(user) }
     func didSelectRelated(_ user: User) { selectedRelated.append(user) }
+}
+
+final class FakeFetchUserUseCase: FetchUserUseCase {
+    var usersByID: [UUID: User] = [:]
+
+    func execute(id: UUID) throws -> User? {
+        usersByID[id]
+    }
 }
 
 final class FakeSetRelatedUserUseCase: SetRelatedUserUseCase {

@@ -55,6 +55,10 @@ public final class DefaultUserRepository: UserRepository {
         user.related = related
         try context.save()
     }
+
+    public func user(id: UUID) throws -> User? {
+        try context.fetch(FetchDescriptor<User>(predicate: #Predicate { $0.id == id })).first
+    }
 }
 
 private extension UserDTO {

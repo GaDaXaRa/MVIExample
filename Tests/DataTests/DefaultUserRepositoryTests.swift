@@ -89,6 +89,19 @@ struct DefaultUserRepositoryTests {
         #expect(user.related == nil)
     }
 
+    @Test("user(id:) resolves a stored user and returns nil for an unknown id")
+    func userByIdResolves() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let ada = User(name: "Ada Lovelace", email: "ada@example.com")
+        context.insert(ada)
+        try context.save()
+        let sut = DefaultUserRepository(context: context, remote: FakeRemoteUserDataSource())
+
+        #expect(try sut.user(id: ada.id)?.name == "Ada Lovelace")
+        #expect(try sut.user(id: UUID()) == nil)
+    }
+
     @Test("setFavorite persists the new value")
     func setFavoritePersists() async throws {
         let container = try makeContainer()

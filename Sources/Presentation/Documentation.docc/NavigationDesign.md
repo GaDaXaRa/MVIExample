@@ -85,6 +85,18 @@ composition root, not the view tree. When the session expires, the whole content
 covered by the login screen; logging back in restores every stack and modal exactly
 as they were.
 
+## Deep links: where routes-as-values pay off
+
+An incoming URL is parsed into a ``DeepLink`` value, and ``DeepLinkCoordinator``
+turns it into **the very same route value an in-app flow would build** —
+`mviexample://user/<uuid>` resolves the id (the one repository read) and sends
+`.push(UserDetailRoute(user:))` to the tab's router. The registry and wireframe
+present it with **no deep-link-specific presentation code at all**. This is the
+concrete payoff of routes being values, not view builders: a route can be
+*constructed from a URL*, which a closure-based destination cannot. A link arriving
+while logged out is held pending and applied on login, so the session gate never
+drops it.
+
 ## Topics
 
 - ``Router``
@@ -94,5 +106,7 @@ as they were.
 - ``WireframeView``
 - ``DestinationRegistry``
 - ``SessionStore``
+- ``DeepLink``
+- ``DeepLinkCoordinator``
 - ``UserListFlow``
 - ``UserDetailFlow``
