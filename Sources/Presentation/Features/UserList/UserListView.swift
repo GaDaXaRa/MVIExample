@@ -21,12 +21,23 @@ public struct UserListView: View {
     // The Model half of the MVI loop: `@Query` observes SwiftData directly,
     // so any change to any `User`, made anywhere in the app, updates the list
     // automatically. Intents remain the only way the view talks to the store.
-    @Query(sort: \User.name) private var users: [User]
+    // The optional exclusion filters in the store, not in memory — used by the
+    // related-user picker to hide the very user the relation is being set for.
+    @Query private var users: [User]
     private let mode: UserListMode
 
-    public init(store: any Store<UserListState, UserListIntent>, mode: UserListMode = .browse) {
+    public init(
+        store: any Store<UserListState, UserListIntent>,
+        mode: UserListMode = .browse,
+        excludingUserID: UUID? = nil
+    ) {
         _store = State(initialValue: store)
         self.mode = mode
+        if let excludingUserID {
+            _users = Query(filter: #Predicate<User> { $0.id != excludingUserID }, sort: \.name)
+        } else {
+            _users = Query(sort: \.name)
+        }
     }
 
     public var body: some View {

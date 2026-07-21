@@ -67,7 +67,9 @@ struct CompositionRoot {
                         router: router
                     )
                 ),
-                mode: .picker
+                mode: .picker,
+                // Don't offer the user being edited as its own related user.
+                excludingUserID: route.target.id
             )
         }
         registry.register(AddUserRoute.self) { _, router in
