@@ -4,10 +4,12 @@ import Domain
 
 /// The chrome each context exposes. Selection behavior is the flow's business;
 /// which buttons exist is the view's, and this is the whole difference between
-/// the browsing tabs and the modal picker.
+/// the browsing tabs and the modal picker. The picker carries the user to
+/// hide (the one the relation is being set for), so an exclusion can't be
+/// requested in a context that has no use for it.
 public enum UserListMode {
     case browse
-    case picker
+    case picker(excludingUserID: UUID?)
 }
 
 /// Presentation-agnostic, like every screen: it renders content and sends
@@ -26,14 +28,10 @@ public struct UserListView: View {
     @Query private var users: [User]
     private let mode: UserListMode
 
-    public init(
-        store: any Store<UserListState, UserListIntent>,
-        mode: UserListMode = .browse,
-        excludingUserID: UUID? = nil
-    ) {
+    public init(store: any Store<UserListState, UserListIntent>, mode: UserListMode = .browse) {
         _store = State(initialValue: store)
         self.mode = mode
-        if let excludingUserID {
+        if case .picker(let excludingUserID?) = mode {
             _users = Query(filter: #Predicate<User> { $0.id != excludingUserID }, sort: \.name)
         } else {
             _users = Query(sort: \.name)

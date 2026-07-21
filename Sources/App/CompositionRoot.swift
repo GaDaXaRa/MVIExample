@@ -67,9 +67,8 @@ struct CompositionRoot {
                         router: router
                     )
                 ),
-                mode: .picker,
                 // Don't offer the user being edited as its own related user.
-                excludingUserID: route.target.id
+                mode: .picker(excludingUserID: route.target.id)
             )
         }
         registry.register(AddUserRoute.self) { _, router in
@@ -84,7 +83,7 @@ struct CompositionRoot {
                     refreshUsers: DefaultRefreshUsersUseCase(repository: repository),
                     flow: PickUserFlow(router: router)
                 ),
-                mode: .picker
+                mode: .picker(excludingUserID: nil)
             )
         }
     }
