@@ -50,6 +50,22 @@ public final class DefaultUserRepository: UserRepository {
         user.isFavorite = isFavorite
         try context.save()
     }
+
+    public func setRelated(_ related: User?, for user: User) throws {
+        user.related = related
+        try context.save()
+    }
+
+    public func user(id: UUID) throws -> User? {
+        try context.fetch(FetchDescriptor<User>(predicate: #Predicate { $0.id == id })).first
+    }
+    
+    public func remove(_ user: User) throws {
+        // Referrers are nullified automatically: `User.relatedBy` declares the
+        // inverse of `related` with a `.nullify` delete rule.
+        context.delete(user)
+        try context.save()
+    }
 }
 
 private extension UserDTO {

@@ -102,4 +102,40 @@ struct AppRouterTests {
         #expect(sut.presentedSheet == nil)
         #expect(sut.presentedCover == nil)
     }
+
+    @Test("dismiss bubbles to the parent when this wireframe presented nothing")
+    func dismissBubblesToParent() {
+        let parent = AppRouter()
+        parent.send(.sheet(TestRoute(id: 1)))
+        let sut = AppRouter(parent: parent)
+
+        sut.send(.dismiss)
+
+        #expect(parent.presentedSheet == nil)
+    }
+
+    @Test("a child's own modal is dismissed before bubbling")
+    func childDismissesOwnModalFirst() {
+        let parent = AppRouter()
+        parent.send(.sheet(TestRoute(id: 1)))
+        let sut = AppRouter(parent: parent)
+        sut.send(.sheet(TestRoute(id: 2)))
+
+        sut.send(.dismiss)
+
+        #expect(sut.presentedSheet == nil)
+        #expect(parent.presentedSheet == AnyRoute(TestRoute(id: 1)))
+    }
+
+    @Test("alert intent drives the alert state and its derived binding")
+    func alertLifecycle() {
+        let sut = AppRouter()
+
+        sut.send(.alert(AlertContent(title: "Ada", message: "ada@example.com")))
+        #expect(sut.presentedAlert == AlertContent(title: "Ada", message: "ada@example.com"))
+        #expect(sut.isAlertPresented == true)
+
+        sut.isAlertPresented = false // what the .alert modifier does on OK
+        #expect(sut.presentedAlert == nil)
+    }
 }

@@ -6,3 +6,4 @@ DerivedData/
 xcuserdata/
 .claude/
 *.xcodeproj/
+Sources/App/Info.plist

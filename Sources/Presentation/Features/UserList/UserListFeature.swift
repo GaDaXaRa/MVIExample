@@ -1,15 +1,36 @@
 import Observation
 import Domain
 
+// MARK: - Routes
+
+/// The user list presented as a modal picker: same feature, different flow —
+/// selecting a user reports it instead of navigating into it.
+public nonisolated struct UserPickerRoute: Route {
+    public init() {}
+}
+
 // MARK: - Flow
 
 /// The feature's navigation *policy*, expressed in domain language: the store
 /// reports what happened, never where it leads. The composition root injects
-/// a concrete flow, so the same list can push a detail in one context and,
-/// say, start a call in another — without touching this feature.
+/// a concrete flow, so the same list can push a detail in one context and
+/// show an alert in another — without touching this feature.
+///
+/// Defaults are no-ops: a context only wires the events its chrome exposes
+/// (`UserListMode` decides which buttons exist).
 public protocol UserListFlow {
     func didSelectUser(_ user: User)
     func didRequestAddUser()
+    func didRequestUserPicker()
+    func didRequestEndSession()
+    func didCancel()
+}
+
+public extension UserListFlow {
+    func didRequestAddUser() {}
+    func didRequestUserPicker() {}
+    func didRequestEndSession() {}
+    func didCancel() {}
 }
 
 // MARK: - Model
@@ -32,6 +53,10 @@ public enum UserListIntent {
     case refresh
     case selectUser(User)
     case addUserTapped
+    case userPickerTapped
+    case endSessionTapped
+    case cancelTapped
+    case remove(User)
 }
 
 // MARK: - Store
@@ -41,10 +66,12 @@ public final class UserListStore: Store {
     public private(set) var state = UserListState()
 
     private let refreshUsers: RefreshUsersUseCase
+    private let removeUser: RemoveUserUseCase
     private let flow: any UserListFlow
 
-    public init(refreshUsers: RefreshUsersUseCase, flow: any UserListFlow) {
+    public init(refreshUsers: RefreshUsersUseCase, removeUser: RemoveUserUseCase, flow: any UserListFlow) {
         self.refreshUsers = refreshUsers
+        self.removeUser = removeUser
         self.flow = flow
     }
 
@@ -58,6 +85,18 @@ public final class UserListStore: Store {
             flow.didSelectUser(user)
         case .addUserTapped:
             flow.didRequestAddUser()
+        case .userPickerTapped:
+            flow.didRequestUserPicker()
+        case .endSessionTapped:
+            flow.didRequestEndSession()
+        case .cancelTapped:
+            flow.didCancel()
+        case .remove(let user):
+            do {
+                try removeUser.execute(user: user)
+            } catch {
+                state.errorMessage = error.localizedDescription
+            }
         }
     }
 

@@ -1,12 +1,15 @@
+import Foundation
 import Domain
 
 /// A test double for `UserRepository`. Main-actor like the protocol itself:
 /// `@Model` objects are main-actor-bound, so the contract is too.
 final class FakeUserRepository: UserRepository {
     var errorToThrow: Error?
+    var storedUsers: [User] = []
     private(set) var refreshCalls = 0
     private(set) var addUserCalls: [(name: String, email: String)] = []
     private(set) var favoriteUpdates: [(user: User, isFavorite: Bool)] = []
+    private(set) var relationUpdates: [(user: User, related: User?)] = []
 
     func refreshUsers() async throws {
         if let errorToThrow { throw errorToThrow }
@@ -23,5 +26,21 @@ final class FakeUserRepository: UserRepository {
         if let errorToThrow { throw errorToThrow }
         user.isFavorite = isFavorite
         favoriteUpdates.append((user, isFavorite))
+    }
+
+    func setRelated(_ related: User?, for user: User) throws {
+        if let errorToThrow { throw errorToThrow }
+        user.related = related
+        relationUpdates.append((user, related))
+    }
+
+    func user(id: UUID) throws -> User? {
+        if let errorToThrow { throw errorToThrow }
+        return storedUsers.first { $0.id == id }
+    }
+    
+    func remove(_ user: User) throws {
+        if let errorToThrow { throw errorToThrow }
+        storedUsers.removeAll(where: { $0 == user })
     }
 }

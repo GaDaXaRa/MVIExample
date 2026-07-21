@@ -2,6 +2,16 @@ import SwiftUI
 import SwiftData
 import Domain
 
+/// The chrome each context exposes. Selection behavior is the flow's business;
+/// which buttons exist is the view's, and this is the whole difference between
+/// the browsing tabs and the modal picker. The picker carries the user to
+/// hide (the one the relation is being set for), so an exclusion can't be
+/// requested in a context that has no use for it.
+public enum UserListMode {
+    case browse
+    case picker(excludingUserID: UUID?)
+}
+
 /// Presentation-agnostic, like every screen: it renders content and sends
 /// intents. Navigation containers (stack, sheet, cover) belong to the
 /// wireframe; destination resolution belongs to the registry.
@@ -13,19 +23,43 @@ public struct UserListView: View {
     // The Model half of the MVI loop: `@Query` observes SwiftData directly,
     // so any change to any `User`, made anywhere in the app, updates the list
     // automatically. Intents remain the only way the view talks to the store.
-    @Query(sort: \User.name) private var users: [User]
+    // The optional exclusion filters in the store, not in memory — used by the
+    // related-user picker to hide the very user the relation is being set for.
+    @Query private var users: [User]
+    private let mode: UserListMode
 
-    public init(store: any Store<UserListState, UserListIntent>) {
+    public init(store: any Store<UserListState, UserListIntent>, mode: UserListMode = .browse) {
         _store = State(initialValue: store)
+        self.mode = mode
+        if case .picker(let excludingUserID?) = mode {
+            _users = Query(filter: #Predicate<User> { $0.id != excludingUserID }, sort: \.name)
+        } else {
+            _users = Query(sort: \.name)
+        }
     }
 
     public var body: some View {
         content
             .navigationTitle("Users")
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Add", systemImage: "plus") {
-                        store.send(.addUserTapped)
+                switch mode {
+                case .browse:
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Button("Add", systemImage: "plus") {
+                            store.send(.addUserTapped)
+                        }
+                        Button("Pick a user", systemImage: "person.crop.rectangle.stack") {
+                            store.send(.userPickerTapped)
+                        }
+                        Button("End session", systemImage: "lock") {
+                            store.send(.endSessionTapped)
+                        }
+                    }
+                case .picker:
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            store.send(.cancelTapped)
+                        }
                     }
                 }
             }
@@ -44,6 +78,13 @@ public struct UserListView: View {
                     UserRow(user: user)
                 }
                 .buttonStyle(.plain)
+                .swipeActions {
+                    if case .browse = mode {
+                        Button("Remove", systemImage: "trash", role: .destructive) {
+                            store.send(.remove(user))
+                        }
+                    }
+                }
             }
             .overlay {
                 if store.state.isLoading && users.isEmpty {

@@ -15,6 +15,12 @@ let package = Package(
         .library(name: "Data", targets: ["Data"]),
         .library(name: "Presentation", targets: ["Presentation"])
     ],
+    dependencies: [
+        // Enables `swift package generate-documentation` for the Presentation
+        // DocC catalog (the canonical architecture docs). Build/test don't need
+        // it; it only powers the docs command and Pages publishing.
+        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.3")
+    ],
     targets: [
         // MARK: - Domain (entities, use cases, repository protocols). No dependencies: the innermost circle.
         .target(name: "Domain", swiftSettings: mainActorByDefault),
