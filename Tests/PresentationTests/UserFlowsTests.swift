@@ -54,50 +54,42 @@ struct UserFlowsTests {
         #expect(parent.presentedCover == nil)
     }
 
-    @Test("RelatedUserFlow presents picker and related detail as sheets")
-    func relatedUserFlowRoutes() {
+    @Test("RelatedUserFlow opens the related-users list as a sheet")
+    func relatedUserFlowOpensList() {
         let router = AppRouter()
         let sut = RelatedUserFlow(router: router)
         let user = User(name: "Ada Lovelace", email: "ada@example.com")
+
+        sut.didRequestManageRelated(for: user)
+
+        #expect(router.presentedSheet == AnyRoute(ManageRelatedRoute(target: user)))
+    }
+
+    @Test("RelatedListFlow opens the editor on add, inspects a related user, and dismisses")
+    func relatedListFlowRoutes() {
+        let target = User(name: "Ada Lovelace", email: "ada@example.com")
         let related = User(name: "Alan Turing", email: "alan@example.com")
+        let router = AppRouter()
+        let sut = RelatedListFlow(target: target, router: router)
 
-        sut.didRequestRelatedPicker(for: user)
-        #expect(router.presentedSheet == AnyRoute(RelatedUserPickerRoute(target: user)))
+        sut.didRequestAddUser()
+        #expect(router.presentedSheet == AnyRoute(SelectRelatedRoute(target: target)))
 
-        sut.didSelectRelated(related)
+        sut.didSelectUser(related)
         #expect(router.presentedSheet == AnyRoute(UserDetailRoute(user: related)))
     }
 
-    @Test("PickRelatedUserFlow assigns the selection and bubbles the dismiss")
-    func pickRelatedFlowAssignsAndDismisses() {
+    @Test("SelectRelatedModalFlow's finish bubbles the dismiss to the presenting wireframe")
+    func selectRelatedFlowDismissBubbles() {
         let parent = AppRouter()
         let target = User(name: "Ada Lovelace", email: "ada@example.com")
-        parent.send(.sheet(RelatedUserPickerRoute(target: target)))
+        parent.send(.sheet(SelectRelatedRoute(target: target)))
         let child = AppRouter(parent: parent)
-        let setRelated = FakeSetRelatedUserUseCase()
-        let sut = PickRelatedUserFlow(target: target, setRelated: setRelated, router: child)
-        let picked = User(name: "Alan Turing", email: "alan@example.com")
+        let sut = SelectRelatedModalFlow(router: child)
 
-        sut.didSelectUser(picked)
+        sut.didFinish()
 
-        #expect(target.related === picked)
         #expect(parent.presentedSheet == nil)
-    }
-
-    @Test("PickRelatedUserFlow surfaces a failed assignment as an alert and stays open")
-    func pickRelatedFlowAlertsOnFailure() {
-        let parent = AppRouter()
-        let target = User(name: "Ada Lovelace", email: "ada@example.com")
-        parent.send(.sheet(RelatedUserPickerRoute(target: target)))
-        let child = AppRouter(parent: parent)
-        let setRelated = FakeSetRelatedUserUseCase()
-        setRelated.errorToThrow = UserRelationError.selfRelation
-        let sut = PickRelatedUserFlow(target: target, setRelated: setRelated, router: child)
-
-        sut.didSelectUser(target)
-
-        #expect(child.presentedAlert != nil)
-        #expect(parent.presentedSheet != nil)
     }
 
     @Test("AddUserModalFlow dismisses on both finish and cancel")

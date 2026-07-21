@@ -2,14 +2,17 @@ import SwiftUI
 import SwiftData
 import Domain
 
-/// The chrome each context exposes. Selection behavior is the flow's business;
-/// which buttons exist is the view's, and this is the whole difference between
-/// the browsing tabs and the modal picker. The picker carries the user to
-/// hide (the one the relation is being set for), so an exclusion can't be
-/// requested in a context that has no use for it.
+/// The chrome and data source each context exposes. Selection *behavior* is
+/// the flow's business; which buttons exist and which users are listed is the
+/// view's. Each case carries exactly the data its context needs — no invalid
+/// combinations — and the same `UserListView` serves the browsing tabs, the
+/// modal pickers, and the related-users list.
 public enum UserListMode {
     case browse
+    /// The full list minus one user (a picker never offers self-selection).
     case picker(excludingUserID: UUID?)
+    /// Only the users related to `target` — the related-users list.
+    case related(of: User)
 }
 
 /// Presentation-agnostic, like every screen: it renders content and sends
@@ -31,10 +34,19 @@ public struct UserListView: View {
     public init(store: any Store<UserListState, UserListIntent>, mode: UserListMode = .browse) {
         _store = State(initialValue: store)
         self.mode = mode
-        if case .picker(let excludingUserID?) = mode {
-            _users = Query(filter: #Predicate<User> { $0.id != excludingUserID }, sort: \.name)
-        } else {
+        // The data source is part of the mode: each context queries exactly the
+        // users it should show, in the store rather than in memory.
+        switch mode {
+        case .browse:
             _users = Query(sort: \.name)
+        case .picker(let excludingUserID?):
+            _users = Query(filter: #Predicate<User> { $0.id != excludingUserID }, sort: \.name)
+        case .picker:
+            _users = Query(sort: \.name)
+        case .related(let target):
+            // A user U is related to `target` iff `target` is in U.relatedBy.
+            let targetID = target.id
+            _users = Query(filter: #Predicate<User> { $0.relatedBy.contains { $0.id == targetID } }, sort: \.name)
         }
     }
 
@@ -58,6 +70,19 @@ public struct UserListView: View {
                 case .picker:
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") {
+                            store.send(.cancelTapped)
+                        }
+                    }
+                case .related:
+                    // "Add" reuses the add intent — the injected flow decides
+                    // it opens the multi-select editor here; "Done" reuses cancel.
+                    ToolbarItem(placement: .primaryAction) {
+                        Button("Add", systemImage: "person.badge.plus") {
+                            store.send(.addUserTapped)
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") {
                             store.send(.cancelTapped)
                         }
                     }
@@ -89,26 +114,11 @@ public struct UserListView: View {
             .overlay {
                 if store.state.isLoading && users.isEmpty {
                     ProgressView()
+                } else if users.isEmpty, case .related = mode {
+                    ContentUnavailableView("No related users", systemImage: "person.2.slash")
                 }
             }
             .refreshable { store.send(.refresh) }
-        }
-    }
-}
-
-private struct UserRow: View {
-    let user: User
-
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(user.name).font(.headline)
-                Text(user.email).font(.subheadline).foregroundStyle(.secondary)
-            }
-            Spacer()
-            if user.isFavorite {
-                Image(systemName: "star.fill").foregroundStyle(.yellow)
-            }
         }
     }
 }

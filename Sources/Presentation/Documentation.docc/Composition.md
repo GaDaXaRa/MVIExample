@@ -32,7 +32,6 @@ registry.register(UserDetailRoute.self) { route, router in
     UserDetailView(store: UserDetailStore(
         user: route.user,
         toggleFavorite: DefaultToggleFavoriteUseCase(repository: repository),
-        setRelated: DefaultSetRelatedUserUseCase(repository: repository),
         flow: RelatedUserFlow(router: router)
     ))
 }

@@ -16,18 +16,19 @@ public final class User {
     public var name: String
     public var email: String
     public var isFavorite: Bool
-    /// Self-referential to-one relationship. Being a `@Model` property, any
-    /// screen showing this user re-renders when the relation changes — the
-    /// modal picker that sets it needs no callback to the detail screen.
-    public var related: User?
+    /// Self-referential many-to-many relationship: the users this one relates
+    /// to. Being a `@Model` property it is observable, so a screen showing the
+    /// list re-renders the moment a relation is added or removed elsewhere —
+    /// no callbacks between the picker and the detail.
+    public var related: [User] = []
 
-    /// Inverse of ``related``: the users who point at this one. Declared only
-    /// so SwiftData can nullify those references when this user is deleted —
-    /// a self-referential to-one has no inverse otherwise, and the delete
-    /// would leave a dangling reference. Internal: nothing outside Domain
-    /// needs "who refers to me".
+    /// Inverse of ``related``: the users who point at this one. Declared so
+    /// SwiftData nullifies those references when this user is deleted (removes
+    /// it from everyone's `related`), so the relationship has a defined
+    /// inverse, and so the related-users list can `@Query` for "users related
+    /// to X" (a user U is in `target.related` iff `target` is in `U.relatedBy`).
     @Relationship(deleteRule: .nullify, inverse: \User.related)
-    var relatedBy: [User] = []
+    public var relatedBy: [User] = []
 
     public init(id: UUID = UUID(), name: String, email: String, isFavorite: Bool = false) {
         self.id = id

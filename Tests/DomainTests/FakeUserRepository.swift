@@ -28,10 +28,16 @@ final class FakeUserRepository: UserRepository {
         favoriteUpdates.append((user, isFavorite))
     }
 
-    func setRelated(_ related: User?, for user: User) throws {
+    func addRelated(_ related: User, to user: User) throws {
         if let errorToThrow { throw errorToThrow }
-        user.related = related
+        user.related.append(related)
         relationUpdates.append((user, related))
+    }
+
+    func removeRelated(_ related: User, from user: User) throws {
+        if let errorToThrow { throw errorToThrow }
+        user.related.removeAll { $0.id == related.id }
+        relationUpdates.append((user, nil))
     }
 
     func user(id: UUID) throws -> User? {

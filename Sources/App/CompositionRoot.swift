@@ -53,24 +53,26 @@ struct CompositionRoot {
             UserDetailView(store: UserDetailStore(
                 user: route.user,
                 toggleFavorite: DefaultToggleFavoriteUseCase(repository: repository),
-                setRelated: DefaultSetRelatedUserUseCase(repository: repository),
                 flow: RelatedUserFlow(router: router)
             ))
         }
-        registry.register(RelatedUserPickerRoute.self) { route, router in
+        registry.register(ManageRelatedRoute.self) { route, router in
             UserListView(
                 store: UserListStore(
                     refreshUsers: DefaultRefreshUsersUseCase(repository: repository),
                     removeUser: DefaultRemoveUserUseCase(repository: repository),
-                    flow: PickRelatedUserFlow(
-                        target: route.target,
-                        setRelated: DefaultSetRelatedUserUseCase(repository: repository),
-                        router: router
-                    )
+                    flow: RelatedListFlow(target: route.target, router: router)
                 ),
-                // Don't offer the user being edited as its own related user.
-                mode: .picker(excludingUserID: route.target.id)
+                mode: .related(of: route.target)
             )
+        }
+        registry.register(SelectRelatedRoute.self) { route, router in
+            SelectRelatedUsersView(store: SelectRelatedUsersStore(
+                target: route.target,
+                addRelated: DefaultAddRelatedUserUseCase(repository: repository),
+                removeRelated: DefaultRemoveRelatedUserUseCase(repository: repository),
+                flow: SelectRelatedModalFlow(router: router)
+            ))
         }
         registry.register(AddUserRoute.self) { _, router in
             AddUserView(store: AddUserStore(

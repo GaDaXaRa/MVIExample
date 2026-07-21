@@ -27,11 +27,15 @@ final class LoginFlowSpy: LoginFlow {
 }
 
 final class UserDetailFlowSpy: UserDetailFlow {
-    private(set) var pickerRequests: [User] = []
-    private(set) var selectedRelated: [User] = []
+    private(set) var manageRequests: [User] = []
 
-    func didRequestRelatedPicker(for user: User) { pickerRequests.append(user) }
-    func didSelectRelated(_ user: User) { selectedRelated.append(user) }
+    func didRequestManageRelated(for user: User) { manageRequests.append(user) }
+}
+
+final class SelectRelatedFlowSpy: SelectRelatedFlow {
+    private(set) var finishCount = 0
+
+    func didFinish() { finishCount += 1 }
 }
 
 final class FakeFetchUserUseCase: FetchUserUseCase {
@@ -42,14 +46,25 @@ final class FakeFetchUserUseCase: FetchUserUseCase {
     }
 }
 
-final class FakeSetRelatedUserUseCase: SetRelatedUserUseCase {
+final class FakeAddRelatedUserUseCase: AddRelatedUserUseCase {
     var errorToThrow: Error?
-    private(set) var calls: [(user: User, related: User?)] = []
+    private(set) var calls: [(related: User, user: User)] = []
 
-    func execute(user: User, related: User?) throws {
-        calls.append((user, related))
+    func execute(_ related: User, to user: User) throws {
+        calls.append((related, user))
         if let errorToThrow { throw errorToThrow }
-        user.related = related
+        user.related.append(related)
+    }
+}
+
+final class FakeRemoveRelatedUserUseCase: RemoveRelatedUserUseCase {
+    var errorToThrow: Error?
+    private(set) var calls: [(related: User, user: User)] = []
+
+    func execute(_ related: User, from user: User) throws {
+        calls.append((related, user))
+        if let errorToThrow { throw errorToThrow }
+        user.related.removeAll { $0.id == related.id }
     }
 }
 
