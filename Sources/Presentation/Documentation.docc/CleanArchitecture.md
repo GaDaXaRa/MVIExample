@@ -56,9 +56,10 @@ features. Because the model is observable, a favorite toggled on one screen, or 
 relation set from a modal, updates every other screen showing that user with no
 callbacks.
 
-The repository protocol is owned by Domain and implemented by Data. It covers
-**mutations only** — reading is `@Query`'s job on the view side (see
-<doc:TheMVILoop>):
+The repository protocol is owned by Domain and implemented by Data. It is
+**mutations plus a single point read**: lists are observed with `@Query` on the
+view side (see <doc:TheMVILoop>), so the only read here resolves one entity by id
+(a deep link carries an id, not an object).
 
 ```swift
 // Sources/Domain/Repositories/UserRepository.swift
@@ -67,6 +68,8 @@ public protocol UserRepository {
     func addUser(name: String, email: String) async throws -> User
     func setFavorite(_ user: User, isFavorite: Bool) throws
     func setRelated(_ related: User?, for user: User) throws
+    func remove(_ user: User) throws
+    func user(id: UUID) throws -> User?   // the one read, for deep links
 }
 ```
 

@@ -18,5 +18,6 @@ public protocol UserRepository {
     /// Resolves a stored user by id (`nil` if none). Used to turn a deep
     /// link's id into a navigable `User`.
     func user(id: UUID) throws -> User?
+    /// Deletes the user from local storage.
     func remove(_ user: User) throws
 }
