@@ -73,14 +73,15 @@ struct ToggleFavoriteUseCaseTests {
 
 @Suite("RemoveUserUseCase")
 struct RemoveUserUseCaseTests {
-    @Test("Removes given user")
-    func removesUser() async throws {
+    @Test("removes the given user from the repository")
+    func removesUser() throws {
         let repository = FakeUserRepository()
-        let sut = DefeaultRemoveUserUseCase(repository: repository)
-        let user = try await repository.addUser(name: "Yeah", email: "yeah@yeah.com")
-        
+        let user = User(name: "Ada Lovelace", email: "ada@example.com")
+        repository.storedUsers = [user]
+        let sut = DefaultRemoveUserUseCase(repository: repository)
+
         try sut.execute(user: user)
-        
-        #expect(!repository.storedUsers.contains(user))
+
+        #expect(repository.storedUsers.isEmpty)
     }
 }

@@ -5,7 +5,7 @@ public protocol RemoveUserUseCase {
     func execute(user: User) throws
 }
 
-public struct DefeaultRemoveUserUseCase: RemoveUserUseCase {
+public struct DefaultRemoveUserUseCase: RemoveUserUseCase {
     private let repository: UserRepository
     
     public init(repository: UserRepository) {

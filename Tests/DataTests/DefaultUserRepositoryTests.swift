@@ -102,6 +102,24 @@ struct DefaultUserRepositoryTests {
         #expect(try sut.user(id: UUID()) == nil)
     }
 
+    @Test("removing a user deletes it and nullifies anyone who had it as related")
+    func removeNullifiesReferrers() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let ada = User(name: "Ada Lovelace", email: "ada@example.com")
+        let alan = User(name: "Alan Turing", email: "alan@example.com")
+        context.insert(ada)
+        context.insert(alan)
+        ada.related = alan
+        try context.save()
+        let sut = DefaultUserRepository(context: context, remote: FakeRemoteUserDataSource())
+
+        try sut.remove(alan)
+
+        #expect(ada.related == nil)
+        #expect(try context.fetchCount(FetchDescriptor<User>()) == 1)
+    }
+
     @Test("setFavorite persists the new value")
     func setFavoritePersists() async throws {
         let container = try makeContainer()

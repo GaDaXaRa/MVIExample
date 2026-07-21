@@ -92,8 +92,12 @@ public final class UserListStore: Store {
         case .cancelTapped:
             flow.didCancel()
         case .remove(let user):
-            Task {
-                try? removeUser?.execute(user: user)
+            // Synchronous and local, like a favorite toggle: surface a failure
+            // instead of swallowing it.
+            do {
+                try removeUser?.execute(user: user)
+            } catch {
+                state.errorMessage = error.localizedDescription
             }
         }
     }
