@@ -51,8 +51,13 @@ public final class DefaultUserRepository: UserRepository {
         try context.save()
     }
 
-    public func setRelated(_ related: User?, for user: User) throws {
-        user.related = related
+    public func addRelated(_ related: User, to user: User) throws {
+        user.related.append(related)
+        try context.save()
+    }
+
+    public func removeRelated(_ related: User, from user: User) throws {
+        user.related.removeAll { $0.id == related.id }
         try context.save()
     }
 

@@ -54,9 +54,9 @@ public struct PickUserFlow: UserListFlow {
     }
 }
 
-/// Detail-screen context: picking a related user and inspecting the current
-/// one both happen in sheets over wherever the detail lives — a tab stack or
-/// another modal; the child-wireframe chain makes that irrelevant here.
+/// Detail-screen context: the related-users list opens as a sheet over
+/// wherever the detail lives — a tab stack or another modal; the child-
+/// wireframe chain makes that irrelevant here.
 public struct RelatedUserFlow: UserDetailFlow {
     private let router: any Router
 
@@ -64,40 +64,44 @@ public struct RelatedUserFlow: UserDetailFlow {
         self.router = router
     }
 
-    public func didRequestRelatedPicker(for user: User) {
-        router.send(.sheet(RelatedUserPickerRoute(target: user)))
+    public func didRequestManageRelated(for user: User) {
+        router.send(.sheet(ManageRelatedRoute(target: user)))
+    }
+}
+
+/// The related-users list context: opens the multi-select editor as a nested
+/// sheet, inspects a related user's detail, or dismisses itself.
+public struct ManageRelatedFlow: RelatedUsersFlow {
+    private let router: any Router
+
+    public init(router: any Router) {
+        self.router = router
+    }
+
+    public func didRequestEditor(for user: User) {
+        router.send(.sheet(SelectRelatedRoute(target: user)))
     }
 
     public func didSelectRelated(_ user: User) {
         router.send(.sheet(UserDetailRoute(user: user)))
     }
+
+    public func didFinish() {
+        router.send(.dismiss)
+    }
 }
 
-/// The modal that *returns* a value: selecting a user assigns it as the
-/// target's related user and dismisses; the detail screen needs no callback,
-/// because the `@Model` relationship is observable. A business-rule failure
-/// (self-relation) surfaces as a wireframe alert instead of dismissing.
-public struct PickRelatedUserFlow: UserListFlow {
-    private let target: User
-    private let setRelated: SetRelatedUserUseCase
+/// The multi-select editor context. Adds and removes are data mutations the
+/// store applies directly (the observable relationship needs no callback);
+/// the flow only closes the editor.
+public struct SelectRelatedModalFlow: SelectRelatedFlow {
     private let router: any Router
 
-    public init(target: User, setRelated: SetRelatedUserUseCase, router: any Router) {
-        self.target = target
-        self.setRelated = setRelated
+    public init(router: any Router) {
         self.router = router
     }
 
-    public func didSelectUser(_ user: User) {
-        do {
-            try setRelated.execute(user: target, related: user)
-            router.send(.dismiss)
-        } catch {
-            router.send(.alert(AlertContent(title: "Cannot relate", message: error.localizedDescription)))
-        }
-    }
-
-    public func didCancel() {
+    public func didFinish() {
         router.send(.dismiss)
     }
 }

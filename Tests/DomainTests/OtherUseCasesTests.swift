@@ -15,43 +15,61 @@ struct RefreshUsersUseCaseTests {
     }
 }
 
-@Suite("SetRelatedUserUseCase")
-struct SetRelatedUserUseCaseTests {
-    @Test("forwards the relation to the repository")
-    func forwardsRelation() throws {
+@Suite("AddRelatedUserUseCase")
+struct AddRelatedUserUseCaseTests {
+    @Test("adds the related user to the target")
+    func addsRelation() throws {
         let repository = FakeUserRepository()
-        let sut = DefaultSetRelatedUserUseCase(repository: repository)
+        let sut = DefaultAddRelatedUserUseCase(repository: repository)
         let user = User(name: "Ada Lovelace", email: "ada@example.com")
         let related = User(name: "Alan Turing", email: "alan@example.com")
 
-        try sut.execute(user: user, related: related)
+        try sut.execute(related, to: user)
 
-        #expect(user.related === related)
+        #expect(user.related.map(\.id) == [related.id])
         #expect(repository.relationUpdates.count == 1)
     }
 
-    @Test("nil clears the relation")
-    func nilClearsRelation() throws {
+    @Test("adding an already-related user is a no-op")
+    func addIsIdempotent() throws {
         let repository = FakeUserRepository()
-        let sut = DefaultSetRelatedUserUseCase(repository: repository)
+        let sut = DefaultAddRelatedUserUseCase(repository: repository)
         let user = User(name: "Ada Lovelace", email: "ada@example.com")
-        user.related = User(name: "Alan Turing", email: "alan@example.com")
+        let related = User(name: "Alan Turing", email: "alan@example.com")
+        user.related = [related]
 
-        try sut.execute(user: user, related: nil)
+        try sut.execute(related, to: user)
 
-        #expect(user.related == nil)
+        #expect(user.related.count == 1)
+        #expect(repository.relationUpdates.isEmpty)
     }
 
     @Test("rejects relating a user to themselves")
     func rejectsSelfRelation() throws {
         let repository = FakeUserRepository()
-        let sut = DefaultSetRelatedUserUseCase(repository: repository)
+        let sut = DefaultAddRelatedUserUseCase(repository: repository)
         let user = User(name: "Ada Lovelace", email: "ada@example.com")
 
         #expect(throws: UserRelationError.selfRelation) {
-            try sut.execute(user: user, related: user)
+            try sut.execute(user, to: user)
         }
         #expect(repository.relationUpdates.isEmpty)
+    }
+}
+
+@Suite("RemoveRelatedUserUseCase")
+struct RemoveRelatedUserUseCaseTests {
+    @Test("removes the related user from the target")
+    func removesRelation() throws {
+        let repository = FakeUserRepository()
+        let sut = DefaultRemoveRelatedUserUseCase(repository: repository)
+        let user = User(name: "Ada Lovelace", email: "ada@example.com")
+        let related = User(name: "Alan Turing", email: "alan@example.com")
+        user.related = [related]
+
+        try sut.execute(related, from: user)
+
+        #expect(user.related.isEmpty)
     }
 }
 

@@ -30,8 +30,7 @@ other. The composition root decides which flow each screen gets, so the **same**
 
 - ``BrowseUsersFlow`` (the tabs): selecting pushes a detail, adding opens a sheet,
   the picker covers fullscreen.
-- ``PickUserFlow`` / ``PickRelatedUserFlow`` (a modal): selecting shows an alert,
-  or assigns a related user and dismisses.
+- ``PickUserFlow`` (a modal): selecting shows an alert instead of navigating.
 
 Store tests use a flow spy; route/mode assertions live in the flow tests.
 
@@ -72,9 +71,11 @@ Every modal a ``WireframeView`` presents is wrapped in a child wireframe with it
 own `AppRouter(parent:)` — its own stack, modals, and alerts. `dismiss` bubbles up
 the parent chain, so a screen deep inside a modal closes it without knowing who
 presented it. Registry builders receive the presenting wireframe's router, which
-keeps every destination acting on its own navigation context. A modal that
-*returns* a value (the related-user picker) needs no callback: it assigns through a
-use case and the observable `@Model` relationship updates the detail screen.
+keeps every destination acting on its own navigation context. The related-users
+feature nests two levels — detail → related-users list → multi-select editor — and
+needs **no callbacks up the chain**: the multi-select editor mutates the observable
+`@Model` relationship through a use case, and the list and detail behind it
+re-render on their own.
 
 ## Wireframes multiply
 

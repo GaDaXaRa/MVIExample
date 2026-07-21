@@ -13,8 +13,8 @@ public protocol UserRepository {
     func refreshUsers() async throws
     func addUser(name: String, email: String) async throws -> User
     func setFavorite(_ user: User, isFavorite: Bool) throws
-    /// `nil` removes the relation.
-    func setRelated(_ related: User?, for user: User) throws
+    func addRelated(_ related: User, to user: User) throws
+    func removeRelated(_ related: User, from user: User) throws
     /// Resolves a stored user by id (`nil` if none). Used to turn a deep
     /// link's id into a navigable `User`.
     func user(id: UUID) throws -> User?

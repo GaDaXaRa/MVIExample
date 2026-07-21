@@ -24,25 +24,14 @@ public struct UserDetailView: View {
                 )
             }
 
-            Section("Related user") {
-                if let related = store.state.user.related {
-                    Button {
-                        store.send(.relatedTapped)
+            Section("Related users") {
+                Button {
+                    store.send(.manageRelatedTapped)
+                } label: {
+                    LabeledContent {
+                        Text("\(store.state.user.related.count)")
                     } label: {
-                        VStack(alignment: .leading) {
-                            Text(related.name).font(.headline)
-                            Text(related.email).font(.subheadline).foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .swipeActions {
-                        Button("Remove", systemImage: "trash", role: .destructive) {
-                            store.send(.removeRelatedTapped)
-                        }
-                    }
-                } else {
-                    Button("Add related user", systemImage: "person.badge.plus") {
-                        store.send(.addRelatedTapped)
+                        Label("Related users", systemImage: "person.2")
                     }
                 }
             }
@@ -57,7 +46,7 @@ public struct UserDetailView: View {
 
 #Preview {
     let user = User(name: "Ada Lovelace", email: "ada@example.com", isFavorite: true)
-    user.related = User(name: "Alan Turing", email: "alan@example.com")
+    user.related = [User(name: "Alan Turing", email: "alan@example.com")]
     return NavigationStack {
         UserDetailView(store: PreviewStore(state: UserDetailState(user: user)))
     }

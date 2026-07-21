@@ -71,22 +71,23 @@ struct DefaultUserRepositoryTests {
         #expect(calls.count == 1)
     }
 
-    @Test("setRelated persists the relation and nil clears it")
-    func setRelatedPersists() async throws {
+    @Test("addRelated and removeRelated persist the many-to-many relation")
+    func relationsPersist() async throws {
         let container = try makeContainer()
         let context = container.mainContext
-        let user = User(name: "Ada Lovelace", email: "ada@example.com")
-        let related = User(name: "Alan Turing", email: "alan@example.com")
-        context.insert(user)
-        context.insert(related)
+        let ada = User(name: "Ada Lovelace", email: "ada@example.com")
+        let alan = User(name: "Alan Turing", email: "alan@example.com")
+        let grace = User(name: "Grace Hopper", email: "grace@example.com")
+        for user in [ada, alan, grace] { context.insert(user) }
         try context.save()
         let sut = DefaultUserRepository(context: context, remote: FakeRemoteUserDataSource())
 
-        try sut.setRelated(related, for: user)
-        #expect(user.related === related)
+        try sut.addRelated(alan, to: ada)
+        try sut.addRelated(grace, to: ada)
+        #expect(Set(ada.related.map(\.id)) == [alan.id, grace.id])
 
-        try sut.setRelated(nil, for: user)
-        #expect(user.related == nil)
+        try sut.removeRelated(alan, from: ada)
+        #expect(ada.related.map(\.id) == [grace.id])
     }
 
     @Test("user(id:) resolves a stored user and returns nil for an unknown id")
@@ -110,13 +111,13 @@ struct DefaultUserRepositoryTests {
         let alan = User(name: "Alan Turing", email: "alan@example.com")
         context.insert(ada)
         context.insert(alan)
-        ada.related = alan
+        ada.related = [alan]
         try context.save()
         let sut = DefaultUserRepository(context: context, remote: FakeRemoteUserDataSource())
 
         try sut.remove(alan)
 
-        #expect(ada.related == nil)
+        #expect(ada.related.isEmpty)
         #expect(try context.fetchCount(FetchDescriptor<User>()) == 1)
     }
 

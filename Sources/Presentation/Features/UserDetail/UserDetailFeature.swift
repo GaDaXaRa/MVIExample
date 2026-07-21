@@ -14,23 +14,12 @@ public nonisolated struct UserDetailRoute: Route {
     }
 }
 
-/// The user list presented to pick a related user for `target`: same list
-/// feature, yet another flow — selecting assigns the relation and dismisses.
-public nonisolated struct RelatedUserPickerRoute: Route {
-    public let target: User
-
-    public init(target: User) {
-        self.target = target
-    }
-}
-
 // MARK: - Flow
 
-/// Navigation policy of the detail screen. Removing the relation is not
-/// here: that is a data mutation (a use case), not navigation.
+/// Navigation policy of the detail screen. Editing relations is not here —
+/// that happens in the modal it opens; the detail only asks to open it.
 public protocol UserDetailFlow {
-    func didRequestRelatedPicker(for user: User)
-    func didSelectRelated(_ user: User)
+    func didRequestManageRelated(for user: User)
 }
 
 // MARK: - Model
@@ -51,9 +40,7 @@ public struct UserDetailState {
 
 public enum UserDetailIntent {
     case toggleFavorite
-    case addRelatedTapped
-    case relatedTapped
-    case removeRelatedTapped
+    case manageRelatedTapped
 }
 
 // MARK: - Store
@@ -63,18 +50,11 @@ public final class UserDetailStore: Store {
     public private(set) var state: UserDetailState
 
     private let toggleFavorite: ToggleFavoriteUseCase
-    private let setRelated: SetRelatedUserUseCase
     private let flow: any UserDetailFlow
 
-    public init(
-        user: User,
-        toggleFavorite: ToggleFavoriteUseCase,
-        setRelated: SetRelatedUserUseCase,
-        flow: any UserDetailFlow
-    ) {
+    public init(user: User, toggleFavorite: ToggleFavoriteUseCase, flow: any UserDetailFlow) {
         self.state = UserDetailState(user: user)
         self.toggleFavorite = toggleFavorite
-        self.setRelated = setRelated
         self.flow = flow
     }
 
@@ -87,17 +67,8 @@ public final class UserDetailStore: Store {
             } catch {
                 state.errorMessage = error.localizedDescription
             }
-        case .addRelatedTapped:
-            flow.didRequestRelatedPicker(for: state.user)
-        case .relatedTapped:
-            guard let related = state.user.related else { return }
-            flow.didSelectRelated(related)
-        case .removeRelatedTapped:
-            do {
-                try setRelated.execute(user: state.user, related: nil)
-            } catch {
-                state.errorMessage = error.localizedDescription
-            }
+        case .manageRelatedTapped:
+            flow.didRequestManageRelated(for: state.user)
         }
     }
 }

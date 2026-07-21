@@ -96,23 +96,6 @@ public struct UserListView: View {
     }
 }
 
-private struct UserRow: View {
-    let user: User
-
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(user.name).font(.headline)
-                Text(user.email).font(.subheadline).foregroundStyle(.secondary)
-            }
-            Spacer()
-            if user.isFavorite {
-                Image(systemName: "star.fill").foregroundStyle(.yellow)
-            }
-        }
-    }
-}
-
 #Preview {
     let container = try! ModelContainer(
         for: User.self,

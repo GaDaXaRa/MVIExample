@@ -67,7 +67,8 @@ public protocol UserRepository {
     func refreshUsers() async throws
     func addUser(name: String, email: String) async throws -> User
     func setFavorite(_ user: User, isFavorite: Bool) throws
-    func setRelated(_ related: User?, for user: User) throws
+    func addRelated(_ related: User, to user: User) throws
+    func removeRelated(_ related: User, from user: User) throws
     func remove(_ user: User) throws
     func user(id: UUID) throws -> User?   // the one read, for deep links
 }
@@ -75,15 +76,16 @@ public protocol UserRepository {
 
 A **use case** is one named business operation, and the right place to enforce
 invariants that must hold regardless of caller. `AddUserUseCase` validates before
-saving; `SetRelatedUserUseCase` rejects a self-relation. If those rules lived in a
-store, every future caller (a Shortcuts intent, a widget, a second screen) would
-have to re-implement them:
+saving; `AddRelatedUserUseCase` rejects a self-relation and de-duplicates. If those
+rules lived in a store, every future caller (a Shortcuts intent, a widget, a second
+screen) would have to re-implement them:
 
 ```swift
-// Sources/Domain/UseCases/SetRelatedUserUseCase.swift
-public func execute(user: User, related: User?) throws {
-    if let related, related.id == user.id { throw UserRelationError.selfRelation }
-    try repository.setRelated(related, for: user)
+// Sources/Domain/UseCases/RelatedUserUseCases.swift
+public func execute(_ related: User, to user: User) throws {
+    guard related.id != user.id else { throw UserRelationError.selfRelation }
+    guard !user.related.contains(where: { $0.id == related.id }) else { return }
+    try repository.addRelated(related, to: user)
 }
 ```
 
