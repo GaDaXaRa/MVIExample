@@ -21,6 +21,14 @@ public final class User {
     /// modal picker that sets it needs no callback to the detail screen.
     public var related: User?
 
+    /// Inverse of ``related``: the users who point at this one. Declared only
+    /// so SwiftData can nullify those references when this user is deleted —
+    /// a self-referential to-one has no inverse otherwise, and the delete
+    /// would leave a dangling reference. Internal: nothing outside Domain
+    /// needs "who refers to me".
+    @Relationship(deleteRule: .nullify, inverse: \User.related)
+    var relatedBy: [User] = []
+
     public init(id: UUID = UUID(), name: String, email: String, isFavorite: Bool = false) {
         self.id = id
         self.name = name

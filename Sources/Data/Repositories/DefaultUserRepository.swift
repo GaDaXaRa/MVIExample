@@ -61,14 +61,8 @@ public final class DefaultUserRepository: UserRepository {
     }
     
     public func remove(_ user: User) throws {
-        // `User.related` is a self-referential to-one with no declared inverse,
-        // so SwiftData won't nullify referrers on delete — a user still
-        // pointing at the deleted one would dangle. Clear those first.
-        let id = user.id
-        let referrers = try context.fetch(FetchDescriptor<User>(predicate: #Predicate { $0.related?.id == id }))
-        for referrer in referrers {
-            referrer.related = nil
-        }
+        // Referrers are nullified automatically: `User.relatedBy` declares the
+        // inverse of `related` with a `.nullify` delete rule.
         context.delete(user)
         try context.save()
     }

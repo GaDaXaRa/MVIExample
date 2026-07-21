@@ -66,10 +66,10 @@ public final class UserListStore: Store {
     public private(set) var state = UserListState()
 
     private let refreshUsers: RefreshUsersUseCase
-    private let removeUser: RemoveUserUseCase?
+    private let removeUser: RemoveUserUseCase
     private let flow: any UserListFlow
 
-    public init(refreshUsers: RefreshUsersUseCase, removeUser: RemoveUserUseCase? = nil, flow: any UserListFlow) {
+    public init(refreshUsers: RefreshUsersUseCase, removeUser: RemoveUserUseCase, flow: any UserListFlow) {
         self.refreshUsers = refreshUsers
         self.removeUser = removeUser
         self.flow = flow
@@ -92,10 +92,8 @@ public final class UserListStore: Store {
         case .cancelTapped:
             flow.didCancel()
         case .remove(let user):
-            // Synchronous and local, like a favorite toggle: surface a failure
-            // instead of swallowing it.
             do {
-                try removeUser?.execute(user: user)
+                try removeUser.execute(user: user)
             } catch {
                 state.errorMessage = error.localizedDescription
             }

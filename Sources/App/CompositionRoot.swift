@@ -61,6 +61,7 @@ struct CompositionRoot {
             UserListView(
                 store: UserListStore(
                     refreshUsers: DefaultRefreshUsersUseCase(repository: repository),
+                    removeUser: DefaultRemoveUserUseCase(repository: repository),
                     flow: PickRelatedUserFlow(
                         target: route.target,
                         setRelated: DefaultSetRelatedUserUseCase(repository: repository),
@@ -81,6 +82,7 @@ struct CompositionRoot {
             UserListView(
                 store: UserListStore(
                     refreshUsers: DefaultRefreshUsersUseCase(repository: repository),
+                    removeUser: DefaultRemoveUserUseCase(repository: repository),
                     flow: PickUserFlow(router: router)
                 ),
                 mode: .picker(excludingUserID: nil)

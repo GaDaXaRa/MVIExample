@@ -91,3 +91,11 @@ final class FakeAddUserUseCase: AddUserUseCase {
         return userToReturn ?? User(name: name, email: email)
     }
 }
+
+final class FakeRemoveUserUseCase: RemoveUserUseCase {
+    var errorToThrow: Error?
+    
+    func execute(user: User) throws {
+        if let errorToThrow { throw errorToThrow }
+    }
+}
