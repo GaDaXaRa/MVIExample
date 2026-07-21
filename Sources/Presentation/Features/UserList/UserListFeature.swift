@@ -56,6 +56,7 @@ public enum UserListIntent {
     case userPickerTapped
     case endSessionTapped
     case cancelTapped
+    case remove(User)
 }
 
 // MARK: - Store
@@ -65,10 +66,12 @@ public final class UserListStore: Store {
     public private(set) var state = UserListState()
 
     private let refreshUsers: RefreshUsersUseCase
+    private let removeUser: RemoveUserUseCase?
     private let flow: any UserListFlow
 
-    public init(refreshUsers: RefreshUsersUseCase, flow: any UserListFlow) {
+    public init(refreshUsers: RefreshUsersUseCase, removeUser: RemoveUserUseCase? = nil, flow: any UserListFlow) {
         self.refreshUsers = refreshUsers
+        self.removeUser = removeUser
         self.flow = flow
     }
 
@@ -88,6 +91,10 @@ public final class UserListStore: Store {
             flow.didRequestEndSession()
         case .cancelTapped:
             flow.didCancel()
+        case .remove(let user):
+            Task {
+                try? removeUser?.execute(user: user)
+            }
         }
     }
 

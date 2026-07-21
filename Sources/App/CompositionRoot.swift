@@ -91,6 +91,7 @@ struct CompositionRoot {
     func makeUserListStore(router: any Router) -> UserListStore {
         UserListStore(
             refreshUsers: DefaultRefreshUsersUseCase(repository: repository),
+            removeUser: DefeaultRemoveUserUseCase(repository: repository),
             flow: BrowseUsersFlow(router: router, session: session)
         )
     }

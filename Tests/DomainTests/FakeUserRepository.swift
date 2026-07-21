@@ -38,4 +38,9 @@ final class FakeUserRepository: UserRepository {
         if let errorToThrow { throw errorToThrow }
         return storedUsers.first { $0.id == id }
     }
+    
+    func remove(_ user: User) throws {
+        if let errorToThrow { throw errorToThrow }
+        storedUsers.removeAll(where: { $0 == user })
+    }
 }

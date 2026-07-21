@@ -59,6 +59,11 @@ public final class DefaultUserRepository: UserRepository {
     public func user(id: UUID) throws -> User? {
         try context.fetch(FetchDescriptor<User>(predicate: #Predicate { $0.id == id })).first
     }
+    
+    public func remove(_ user: User) throws {
+        context.delete(user)
+        try context.save()
+    }
 }
 
 private extension UserDTO {

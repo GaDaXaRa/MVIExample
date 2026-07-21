@@ -78,6 +78,13 @@ public struct UserListView: View {
                     UserRow(user: user)
                 }
                 .buttonStyle(.plain)
+                .swipeActions {
+                    if case .browse = mode {
+                        Button("Remove", systemImage: "trash", role: .destructive) {
+                            store.send(.remove(user))
+                        }
+                    }
+                }
             }
             .overlay {
                 if store.state.isLoading && users.isEmpty {

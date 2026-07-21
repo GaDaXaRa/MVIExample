@@ -70,3 +70,17 @@ struct ToggleFavoriteUseCaseTests {
         #expect(user.isFavorite == true)
     }
 }
+
+@Suite("RemoveUserUseCase")
+struct RemoveUserUseCaseTests {
+    @Test("Removes given user")
+    func removesUser() async throws {
+        let repository = FakeUserRepository()
+        let sut = DefeaultRemoveUserUseCase(repository: repository)
+        let user = try await repository.addUser(name: "Yeah", email: "yeah@yeah.com")
+        
+        try sut.execute(user: user)
+        
+        #expect(!repository.storedUsers.contains(user))
+    }
+}
