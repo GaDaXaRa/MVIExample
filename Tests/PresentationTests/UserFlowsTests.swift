@@ -65,17 +65,17 @@ struct UserFlowsTests {
         #expect(router.presentedSheet == AnyRoute(ManageRelatedRoute(target: user)))
     }
 
-    @Test("ManageRelatedFlow opens the editor, inspects a related user, and dismisses")
-    func manageRelatedFlowRoutes() {
-        let router = AppRouter()
-        let sut = ManageRelatedFlow(router: router)
+    @Test("RelatedListFlow opens the editor on add, inspects a related user, and dismisses")
+    func relatedListFlowRoutes() {
         let target = User(name: "Ada Lovelace", email: "ada@example.com")
         let related = User(name: "Alan Turing", email: "alan@example.com")
+        let router = AppRouter()
+        let sut = RelatedListFlow(target: target, router: router)
 
-        sut.didRequestEditor(for: target)
+        sut.didRequestAddUser()
         #expect(router.presentedSheet == AnyRoute(SelectRelatedRoute(target: target)))
 
-        sut.didSelectRelated(related)
+        sut.didSelectUser(related)
         #expect(router.presentedSheet == AnyRoute(UserDetailRoute(user: related)))
     }
 

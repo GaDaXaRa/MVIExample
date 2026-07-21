@@ -9,6 +9,16 @@ public nonisolated struct UserPickerRoute: Route {
     public init() {}
 }
 
+/// The user list filtered to `target`'s related users — the related-users
+/// list, shown modally. Same `UserListView`, `UserListMode.related(of:)`.
+public nonisolated struct ManageRelatedRoute: Route {
+    public let target: User
+
+    public init(target: User) {
+        self.target = target
+    }
+}
+
 // MARK: - Flow
 
 /// The feature's navigation *policy*, expressed in domain language: the store

@@ -3,25 +3,6 @@ import Foundation
 import Domain
 @testable import Presentation
 
-@Suite("RelatedUsersStore")
-struct RelatedUsersStoreTests {
-    @Test("edit, select and done are forwarded to the flow")
-    func intentsForwardedToFlow() {
-        let target = User(name: "Ada Lovelace", email: "ada@example.com")
-        let related = User(name: "Alan Turing", email: "alan@example.com")
-        let flow = RelatedUsersFlowSpy()
-        let sut = RelatedUsersStore(target: target, flow: flow)
-
-        sut.send(.editTapped)
-        sut.send(.selectRelated(related))
-        sut.send(.doneTapped)
-
-        #expect(flow.editorRequests.map(\.id) == [target.id])
-        #expect(flow.selectedRelated.map(\.id) == [related.id])
-        #expect(flow.finishCount == 1)
-    }
-}
-
 @Suite("SelectRelatedUsersStore")
 struct SelectRelatedUsersStoreTests {
     private func makeSut(

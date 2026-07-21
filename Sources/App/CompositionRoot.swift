@@ -57,10 +57,14 @@ struct CompositionRoot {
             ))
         }
         registry.register(ManageRelatedRoute.self) { route, router in
-            RelatedUsersView(store: RelatedUsersStore(
-                target: route.target,
-                flow: ManageRelatedFlow(router: router)
-            ))
+            UserListView(
+                store: UserListStore(
+                    refreshUsers: DefaultRefreshUsersUseCase(repository: repository),
+                    removeUser: DefaultRemoveUserUseCase(repository: repository),
+                    flow: RelatedListFlow(target: route.target, router: router)
+                ),
+                mode: .related(of: route.target)
+            )
         }
         registry.register(SelectRelatedRoute.self) { route, router in
             SelectRelatedUsersView(store: SelectRelatedUsersStore(

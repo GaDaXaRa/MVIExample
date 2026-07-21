@@ -103,6 +103,25 @@ struct DefaultUserRepositoryTests {
         #expect(try sut.user(id: UUID()) == nil)
     }
 
+    @Test("a #Predicate on relatedBy fetches exactly the users related to a target")
+    func relatedByPredicateFetchesRelated() async throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let ada = User(name: "Ada Lovelace", email: "ada@example.com")
+        let alan = User(name: "Alan Turing", email: "alan@example.com")
+        let grace = User(name: "Grace Hopper", email: "grace@example.com")
+        for user in [ada, alan, grace] { context.insert(user) }
+        ada.related = [alan]
+        try context.save()
+
+        let targetID = ada.id
+        let related = try context.fetch(
+            FetchDescriptor<User>(predicate: #Predicate { $0.relatedBy.contains { $0.id == targetID } })
+        )
+
+        #expect(related.map(\.id) == [alan.id])
+    }
+
     @Test("removing a user deletes it and nullifies anyone who had it as related")
     func removeNullifiesReferrers() async throws {
         let container = try makeContainer()

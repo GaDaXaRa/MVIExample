@@ -69,24 +69,28 @@ public struct RelatedUserFlow: UserDetailFlow {
     }
 }
 
-/// The related-users list context: opens the multi-select editor as a nested
-/// sheet, inspects a related user's detail, or dismisses itself.
-public struct ManageRelatedFlow: RelatedUsersFlow {
+/// The related-users list context: the *same* `UserListView` as browse, but
+/// its events mean different things — selecting inspects a related user's
+/// detail, "Add" (`didRequestAddUser`) opens the multi-select editor, and
+/// "Done" (`didCancel`) dismisses. The target it edits is captured here.
+public struct RelatedListFlow: UserListFlow {
+    private let target: User
     private let router: any Router
 
-    public init(router: any Router) {
+    public init(target: User, router: any Router) {
+        self.target = target
         self.router = router
     }
 
-    public func didRequestEditor(for user: User) {
-        router.send(.sheet(SelectRelatedRoute(target: user)))
-    }
-
-    public func didSelectRelated(_ user: User) {
+    public func didSelectUser(_ user: User) {
         router.send(.sheet(UserDetailRoute(user: user)))
     }
 
-    public func didFinish() {
+    public func didRequestAddUser() {
+        router.send(.sheet(SelectRelatedRoute(target: target)))
+    }
+
+    public func didCancel() {
         router.send(.dismiss)
     }
 }

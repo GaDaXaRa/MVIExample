@@ -31,8 +31,13 @@ other. The composition root decides which flow each screen gets, so the **same**
 - ``BrowseUsersFlow`` (the tabs): selecting pushes a detail, adding opens a sheet,
   the picker covers fullscreen.
 - ``PickUserFlow`` (a modal): selecting shows an alert instead of navigating.
+- ``RelatedListFlow`` (the related-users list): the same list filtered to one
+  user's relations — selecting inspects a related user, "Add" opens the
+  multi-select editor, "Done" dismisses.
 
-Store tests use a flow spy; route/mode assertions live in the flow tests.
+`UserListMode` picks the data source and chrome per context (all users, all but
+one, or one user's relations); the flow picks the behavior. Store tests use a flow
+spy; route/mode assertions live in the flow tests.
 
 ## The Router is the mechanism
 
@@ -74,8 +79,9 @@ presented it. Registry builders receive the presenting wireframe's router, which
 keeps every destination acting on its own navigation context. The related-users
 feature nests two levels — detail → related-users list → multi-select editor — and
 needs **no callbacks up the chain**: the multi-select editor mutates the observable
-`@Model` relationship through a use case, and the list and detail behind it
-re-render on their own.
+`@Model` relationship through a use case, and the related-users list (a
+`UserListView` filtered by `@Query` to that user's relations) and the detail behind
+it re-render on their own.
 
 ## Wireframes multiply
 

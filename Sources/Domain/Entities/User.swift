@@ -24,10 +24,11 @@ public final class User {
 
     /// Inverse of ``related``: the users who point at this one. Declared so
     /// SwiftData nullifies those references when this user is deleted (removes
-    /// it from everyone's `related`), and so the relationship has a defined
-    /// inverse. Internal: nothing outside Domain needs "who refers to me".
+    /// it from everyone's `related`), so the relationship has a defined
+    /// inverse, and so the related-users list can `@Query` for "users related
+    /// to X" (a user U is in `target.related` iff `target` is in `U.relatedBy`).
     @Relationship(deleteRule: .nullify, inverse: \User.related)
-    var relatedBy: [User] = []
+    public var relatedBy: [User] = []
 
     public init(id: UUID = UUID(), name: String, email: String, isFavorite: Bool = false) {
         self.id = id

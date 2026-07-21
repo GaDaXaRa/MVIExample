@@ -32,16 +32,6 @@ final class UserDetailFlowSpy: UserDetailFlow {
     func didRequestManageRelated(for user: User) { manageRequests.append(user) }
 }
 
-final class RelatedUsersFlowSpy: RelatedUsersFlow {
-    private(set) var editorRequests: [User] = []
-    private(set) var selectedRelated: [User] = []
-    private(set) var finishCount = 0
-
-    func didRequestEditor(for user: User) { editorRequests.append(user) }
-    func didSelectRelated(_ user: User) { selectedRelated.append(user) }
-    func didFinish() { finishCount += 1 }
-}
-
 final class SelectRelatedFlowSpy: SelectRelatedFlow {
     private(set) var finishCount = 0
 
