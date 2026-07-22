@@ -5,7 +5,7 @@ public enum UserRelationError: Error, LocalizedError, Sendable, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .selfRelation: return "A user cannot be related to themselves."
+        case .selfRelation: return String(localized: "A user cannot be related to themselves.")
         }
     }
 }

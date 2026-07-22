@@ -35,7 +35,10 @@ struct RootView: View {
                         UserListView(store: composition.makeUserListStore(router: tab.router))
                     }
                     .tabItem {
-                        Label(tab.title, systemImage: tab.systemImage)
+                        // The id doubles as the localization key (a stable
+                        // English identifier); the visible title resolves from
+                        // the app's String Catalog.
+                        Label(LocalizedStringKey(tab.title), systemImage: tab.systemImage)
                     }
                     .tag(index)
                 }
