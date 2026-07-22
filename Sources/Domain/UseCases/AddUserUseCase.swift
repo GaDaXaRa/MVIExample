@@ -8,8 +8,8 @@ public enum UserValidationError: Error, LocalizedError, Sendable, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .emptyName: return "Name cannot be empty."
-        case .invalidEmail: return "Please enter a valid email address."
+        case .emptyName: return String(localized: "Name cannot be empty.")
+        case .invalidEmail: return String(localized: "Please enter a valid email address.")
         }
     }
 }
