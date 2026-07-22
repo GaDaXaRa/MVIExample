@@ -104,10 +104,17 @@ public struct UserListView: View {
                 }
                 .buttonStyle(.plain)
                 .swipeActions {
-                    if case .browse = mode {
+                    switch mode {
+                    case .browse:
                         Button("Remove", systemImage: "trash", role: .destructive) {
                             store.send(.remove(user))
                         }
+                    case .related(let fromUser):
+                        Button("Remove related", systemImage: "trash", role: .destructive) {
+                            store.send(.removeRelated(user, from: fromUser))
+                        }
+                    default:
+                        EmptyView()
                     }
                 }
             }

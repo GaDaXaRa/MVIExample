@@ -32,6 +32,7 @@ public struct SelectRelatedUsersView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityAddTraits(isRelated(user) ? .isSelected : [])
             }
             if let errorMessage = store.state.errorMessage {
                 Text(errorMessage).foregroundStyle(.red)

@@ -65,7 +65,11 @@ public struct RelatedUserFlow: UserDetailFlow {
     }
 
     public func didRequestManageRelated(for user: User) {
-        router.send(.sheet(ManageRelatedRoute(target: user)))
+        if user.related.isEmpty {
+            router.send(.sheet(SelectRelatedRoute(target: user)))
+        } else {
+            router.send(.sheet(ManageRelatedRoute(target: user)))
+        }
     }
 }
 

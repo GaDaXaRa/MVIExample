@@ -5,11 +5,19 @@ import Domain
 
 @Suite("UserListStore")
 struct UserListStoreTests {
+    private func makeSut(
+        refresh: FakeRefreshUsersUseCase = FakeRefreshUsersUseCase(),
+        remove: FakeRemoveUserUseCase = FakeRemoveUserUseCase(),
+        removeRelated: FakeRemoveRelatedUserUseCase = FakeRemoveRelatedUserUseCase(),
+        flow: UserListFlowSpy = UserListFlowSpy()
+    ) -> UserListStore {
+        UserListStore(refreshUsers: refresh, removeUser: remove, removeRelated: removeRelated, flow: flow)
+    }
+
     @Test("onAppear triggers a remote refresh")
     func onAppearTriggersRefresh() async throws {
         let refresh = FakeRefreshUsersUseCase()
-        let remove = FakeRemoveUserUseCase()
-        let sut = UserListStore(refreshUsers: refresh, removeUser: remove, flow: UserListFlowSpy())
+        let sut = makeSut(refresh: refresh)
 
         sut.send(.onAppear)
         try await waitUntil { refresh.calls == 1 }
@@ -24,9 +32,8 @@ struct UserListStoreTests {
             var errorDescription: String? { "boom" }
         }
         let refresh = FakeRefreshUsersUseCase()
-        let remove = FakeRemoveUserUseCase()
         refresh.errorToThrow = SampleError()
-        let sut = UserListStore(refreshUsers: refresh, removeUser: remove, flow: UserListFlowSpy())
+        let sut = makeSut(refresh: refresh)
 
         sut.send(.refresh)
         try await waitUntil { sut.state.errorMessage != nil }
@@ -38,7 +45,7 @@ struct UserListStoreTests {
     @Test("selecting a user reports it to the flow — the store never picks the destination")
     func selectUserReportsToFlow() {
         let flow = UserListFlowSpy()
-        let sut = UserListStore(refreshUsers: FakeRefreshUsersUseCase(), removeUser: FakeRemoveUserUseCase(), flow: flow)
+        let sut = makeSut(flow: flow)
         let user = User(name: "Ada Lovelace", email: "ada@example.com")
 
         sut.send(.selectUser(user))
@@ -49,7 +56,7 @@ struct UserListStoreTests {
     @Test("tapping add reports the request to the flow")
     func addUserTappedReportsToFlow() {
         let flow = UserListFlowSpy()
-        let sut = UserListStore(refreshUsers: FakeRefreshUsersUseCase(), removeUser: FakeRemoveUserUseCase(), flow: flow)
+        let sut = makeSut(flow: flow)
 
         sut.send(.addUserTapped)
 
@@ -59,7 +66,7 @@ struct UserListStoreTests {
     @Test("picker, end-session and cancel intents are forwarded to the flow")
     func chromeIntentsAreForwarded() {
         let flow = UserListFlowSpy()
-        let sut = UserListStore(refreshUsers: FakeRefreshUsersUseCase(), removeUser: FakeRemoveUserUseCase(), flow: flow)
+        let sut = makeSut(flow: flow)
 
         sut.send(.userPickerTapped)
         sut.send(.endSessionTapped)
@@ -68,6 +75,21 @@ struct UserListStoreTests {
         #expect(flow.userPickerRequests == 1)
         #expect(flow.endSessionRequests == 1)
         #expect(flow.cancellations == 1)
+    }
+
+    @Test("removing a related user forwards to the use case")
+    func removeRelatedForwardsToUseCase() {
+        let removeRelated = FakeRemoveRelatedUserUseCase()
+        let sut = makeSut(removeRelated: removeRelated)
+        let target = User(name: "Ada Lovelace", email: "ada@example.com")
+        let related = User(name: "Alan Turing", email: "alan@example.com")
+        target.related = [related]
+
+        sut.send(.removeRelated(related, from: target))
+
+        #expect(removeRelated.calls.count == 1)
+        #expect(target.related.isEmpty)
+        #expect(sut.state.errorMessage == nil)
     }
 }
 
