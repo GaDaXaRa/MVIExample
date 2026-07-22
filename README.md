@@ -32,12 +32,13 @@ delay) so the sample runs with no backend and no configuration.
 ## Project layout
 
 ```
+Wireframe/       domain-agnostic MVI + navigation kit             (its own SPM package)
 Package.swift    Domain, Data, Presentation libraries + their test targets
 project.yml      XcodeGen spec for the native iOS App target
 Sources/
   Domain/        entities, repository protocols, use cases       (no dependencies)
   Data/          DTOs, data sources, repository implementations  (depends on Domain)
-  Presentation/  MVI State/Intent/Store + SwiftUI views          (depends on Domain only)
+  Presentation/  MVI features + SwiftUI views                    (depends on Domain + Wireframe, never Data)
   App/           composition root + @main entry point            (built by the Xcode target, not by Package.swift)
 Tests/
   DomainTests/         use cases tested against a fake repository

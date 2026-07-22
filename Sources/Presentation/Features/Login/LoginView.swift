@@ -1,4 +1,5 @@
 import SwiftUI
+import Wireframe
 
 public struct LoginView: View {
     @State private var store: any Store<Void, LoginIntent>

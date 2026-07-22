@@ -1,11 +1,12 @@
 import Foundation
+import Wireframe
 import Observation
 import Domain
 
 /// Turns a ``DeepLink`` into ordinary navigation on the existing routers. This
 /// is where routes-as-values pays off: the coordinator builds the very same
 /// `Route` value the in-app flows build (`UserDetailRoute`, `AddUserRoute`),
-/// hands it to the tab's ``AppRouter``, and the registry/wireframe present it —
+/// hands it to the tab's `AppRouter`, and the registry/wireframe present it —
 /// there is no deep-link-specific presentation code at all.
 ///
 /// A link arriving while logged out is held pending and applied on login, so a

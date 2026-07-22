@@ -5,7 +5,7 @@ State flows one way: View → Intent → Store → State → View.
 ## Overview
 
 Every screen is built from three pieces that always appear together, plus one
-``Store`` that ties them into a loop:
+`Store` that ties them into a loop:
 
 ```
       ┌────────────────────────────────────────────┐
@@ -22,7 +22,7 @@ Every screen is built from three pieces that always appear together, plus one
 - **Intent** — an `enum` of every action the view can produce.
 - **Store** — the only place that turns an `Intent` into a new `State`.
 
-The contract every feature implements is ``Store``. It uses the Swift Observation
+The contract every feature implements is `Store`. It uses the Swift Observation
 framework, not `ObservableObject`/`@Published`: a view that reads `store.state.name`
 re-renders only when `name` changes, with no per-field boilerplate.
 
@@ -69,15 +69,13 @@ mechanism, replacing any hand-rolled stream or cross-feature callback.
 
 Each view stores `any Store<State, Intent>` — the protocol has primary associated
 types, so no type-erasing wrapper is needed. That is what lets every screen have a
-`#Preview` backed by ``PreviewStore``, a generic stub with fixed state and no-op
+`#Preview` backed by `PreviewStore`, a generic stub with fixed state and no-op
 intents, without wiring use cases or a repository behind it. Chrome that varies by
 context (``UserListView`` in `.browse` vs `.picker` mode) is a ``UserListMode``
 parameter; behavior that varies stays in the flow.
 
 ## Topics
 
-- ``Store``
-- ``PreviewStore``
 - ``UserListStore``
 - ``UserDetailStore``
 - ``AddUserStore``

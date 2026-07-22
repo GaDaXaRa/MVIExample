@@ -1,4 +1,5 @@
 import Domain
+import Wireframe
 
 // Concrete navigation policies. A flow is allowed to know several features —
 // knitting screens together is precisely its job; the features themselves

@@ -1,4 +1,5 @@
 import SwiftUI
+import Wireframe
 
 /// Presentation-agnostic: no `NavigationStack`, no dismiss logic, no idea
 /// whether it is on a sheet, a cover or a pushed screen. The wireframe

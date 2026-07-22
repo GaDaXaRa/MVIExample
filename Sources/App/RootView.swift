@@ -1,4 +1,5 @@
 import SwiftUI
+import Wireframe
 import Presentation
 
 /// The app's outermost switch: login gate over the main tabs. When the

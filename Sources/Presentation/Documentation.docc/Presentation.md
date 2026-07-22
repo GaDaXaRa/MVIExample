@@ -20,15 +20,19 @@ real source.
 The module graph, enforced by the compiler through `Package.swift`:
 
 ```
+Wireframe (pkg)   ← domain-agnostic MVI + navigation kit (its own SPM package)
 Domain            ← no target dependencies (imports SwiftData for @Model)
 Data              ← depends on Domain
-Presentation      ← depends on Domain (never Data)
-App               ← depends on all three (composition root)
+Presentation      ← depends on Domain + Wireframe (never Data)
+App               ← depends on all of the above (composition root)
 ```
 
 `Presentation` cannot `import Data`: it isn't a declared dependency, so it is a
 build error, not a code-review comment. A screen only knows business concepts
-(`User`, a use case) and never *how* they are fetched or stored.
+(`User`, a use case) and never *how* they are fetched or stored. The generic
+core (`Store`, `Router`, `WireframeView`, `DestinationRegistry`, `SessionStore`)
+lives in the separate **Wireframe** package, so it physically cannot reach back
+into any app layer and could be reused by another app as-is.
 
 ## Topics
 
@@ -40,22 +44,10 @@ build error, not a code-review comment. A screen only knows business concepts
 - <doc:Composition>
 - <doc:Testing>
 
-### The MVI contract
+### Deep linking
 
-- ``Store``
-- ``PreviewStore``
-
-### Navigation
-
-- ``Router``
-- ``RouterIntent``
-- ``AppRouter``
-- ``Route``
-- ``AnyRoute``
-- ``AlertContent``
-- ``WireframeView``
-- ``DestinationRegistry``
-- ``SessionStore``
+- ``DeepLink``
+- ``DeepLinkCoordinator``
 
 ### Features
 

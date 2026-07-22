@@ -41,9 +41,9 @@ spy; route/mode assertions live in the flow tests.
 
 ## The Router is the mechanism
 
-``Router`` is a closed vocabulary of intents behind a single entry point,
-mirroring ``Store``. Flows depend on the protocol, so they are tested against a
-real ``AppRouter`` or a spy:
+`Router` is a closed vocabulary of intents behind a single entry point,
+mirroring `Store`. Flows depend on the protocol, so they are tested against a
+real `AppRouter` or a spy:
 
 ```swift
 public enum RouterIntent {
@@ -56,15 +56,15 @@ public enum RouterIntent {
 ```
 
 Destinations are described by **route values, not view builders**: each feature
-declares a small ``Route``-conforming struct saying *what* to show, never *how*.
-``DestinationRegistry`` (filled once by the composition root) maps each route type
-to its view, and ``WireframeView`` resolves routes through it at presentation time.
+declares a small `Route`-conforming struct saying *what* to show, never *how*.
+`DestinationRegistry` (filled once by the composition root) maps each route type
+to its view, and `WireframeView` resolves routes through it at presentation time.
 Because resolution is independent of the mode, **the same route can be pushed or
 presented modally interchangeably**. Views carry no `NavigationStack` and no
 dismiss logic.
 
 Because routes are values they stay comparable — `popTo` works by equality — and
-could be made `Codable` for deep links. ``AppRouter`` keeps a `routes` mirror
+could be made `Codable` for deep links. `AppRouter` keeps a `routes` mirror
 beside the opaque `NavigationPath`, reconciled when the user pops interactively.
 The registry is the one deliberate `AnyView` in the app: a map of heterogeneous
 view builders cannot be typed, and a screen boundary is where erasure costs
@@ -72,7 +72,7 @@ nothing.
 
 ## Wireframes nest
 
-Every modal a ``WireframeView`` presents is wrapped in a child wireframe with its
+Every modal a `WireframeView` presents is wrapped in a child wireframe with its
 own `AppRouter(parent:)` — its own stack, modals, and alerts. `dismiss` bubbles up
 the parent chain, so a screen deep inside a modal closes it without knowing who
 presented it. Registry builders receive the presenting wireframe's router, which
@@ -85,7 +85,7 @@ it re-render on their own.
 
 ## Wireframes multiply
 
-The app is a login gate (``SessionStore`` + `RootView`) over a `TabView` where each
+The app is a login gate (`SessionStore` + `RootView`) over a `TabView` where each
 tab is its own wireframe: independent navigation state per tab, kept alive across
 tab switches — and across session expiries, because the routers live in the
 composition root, not the view tree. When the session expires, the whole content is
@@ -106,13 +106,6 @@ drops it.
 
 ## Topics
 
-- ``Router``
-- ``RouterIntent``
-- ``AppRouter``
-- ``Route``
-- ``WireframeView``
-- ``DestinationRegistry``
-- ``SessionStore``
 - ``DeepLink``
 - ``DeepLinkCoordinator``
 - ``UserListFlow``
