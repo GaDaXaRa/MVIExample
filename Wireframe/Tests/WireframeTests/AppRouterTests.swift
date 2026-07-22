@@ -1,6 +1,6 @@
 import Testing
 import SwiftUI
-@testable import Presentation
+@testable import Wireframe
 
 private nonisolated struct TestRoute: Route {
     let id: Int

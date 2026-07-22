@@ -16,6 +16,9 @@ let package = Package(
         .library(name: "Presentation", targets: ["Presentation"])
     ],
     dependencies: [
+        // The domain-agnostic MVI + Wireframe kit, a separate local package so
+        // it can't reach back into any app layer and could be reused as-is.
+        .package(path: "Wireframe"),
         // Enables `swift package generate-documentation` for the Presentation
         // DocC catalog (the canonical architecture docs). Build/test don't need
         // it; it only powers the docs command and Pages publishing.
@@ -28,8 +31,12 @@ let package = Package(
         // MARK: - Data (DTOs, data sources, repository implementations). Depends only on Domain.
         .target(name: "Data", dependencies: ["Domain"], swiftSettings: mainActorByDefault),
 
-        // MARK: - Presentation (MVI: State, Intent, Store + SwiftUI views). Depends only on Domain, never on Data.
-        .target(name: "Presentation", dependencies: ["Domain"], swiftSettings: mainActorByDefault),
+        // MARK: - Presentation (MVI features on the Wireframe kit). Depends on Domain + Wireframe, never on Data.
+        .target(
+            name: "Presentation",
+            dependencies: ["Domain", .product(name: "Wireframe", package: "Wireframe")],
+            swiftSettings: mainActorByDefault
+        ),
 
         // The App composition root (Sources/App) is built by the native Xcode target
         // generated from project.yml, not by this package — an SPM executableTarget
@@ -37,6 +44,10 @@ let package = Package(
 
         .testTarget(name: "DomainTests", dependencies: ["Domain"], swiftSettings: mainActorByDefault),
         .testTarget(name: "DataTests", dependencies: ["Data", "Domain"], swiftSettings: mainActorByDefault),
-        .testTarget(name: "PresentationTests", dependencies: ["Presentation", "Domain"], swiftSettings: mainActorByDefault)
+        .testTarget(
+            name: "PresentationTests",
+            dependencies: ["Presentation", "Domain", .product(name: "Wireframe", package: "Wireframe")],
+            swiftSettings: mainActorByDefault
+        )
     ]
 )

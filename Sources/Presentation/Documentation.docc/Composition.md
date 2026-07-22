@@ -5,7 +5,7 @@ that imports every layer.
 
 ## Overview
 
-Every layer above deals only in protocols (`UserRepository`, a use case, ``Router``,
+Every layer above deals only in protocols (`UserRepository`, a use case, `Router`,
 ``UserListFlow``). Something has to instantiate the concrete types and wire them
 together — that something is `CompositionRoot`, the *only* type allowed to import
 `Domain`, `Data`, and `Presentation` at once.

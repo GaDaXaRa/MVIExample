@@ -1,4 +1,5 @@
 import SwiftData
+import Wireframe
 import Domain
 import Data
 import Presentation

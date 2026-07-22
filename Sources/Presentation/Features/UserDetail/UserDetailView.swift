@@ -1,4 +1,5 @@
 import SwiftUI
+import Wireframe
 import Domain
 
 public struct UserDetailView: View {
