@@ -1,36 +1,49 @@
 # Architecture
 
-The full architecture documentation now lives in a **DocC catalog** in the
-`Presentation` target, so it renders inside Xcode's documentation viewer
-(⇧⌘0) with live links to the real symbols (`Store`, `Router`, `WireframeView`…)
-and stays wired to the API it describes.
+The full architecture documentation lives in **DocC catalogs**, so it renders
+inside Xcode's documentation viewer (⇧⌘0) with live links to the real symbols
+and stays wired to the API it describes. There are two:
+
+- **Presentation** (`Sources/Presentation/Documentation.docc/`) — how *this app*
+  is built: layers, the MVI loop, navigation, composition, testing.
+- **Wireframe** (`Wireframe/Sources/Wireframe/Documentation.docc/`) — the
+  domain-agnostic MVI + navigation kit, extracted as its own SPM package, with
+  an adoption guide for reusing it in another app.
 
 ## Read it
 
-- **In Xcode**: Product → Build Documentation (⌃⇧⌘D), then open
-  *Presentation* in the documentation window.
+- **In Xcode**: Product → Build Documentation (⌃⇧⌘D), then open *Presentation*
+  and *Wireframe* in the documentation window.
 - **From the command line** (uses [swift-docc-plugin](https://github.com/swiftlang/swift-docc-plugin),
-  already a package dependency):
+  already a dependency of both packages):
 
   ```sh
   swift package generate-documentation --target Presentation
+  cd Wireframe && swift package generate-documentation --target Wireframe
   ```
 
-  Add `--transform-for-static-hosting` to produce an archive publishable to
+  Add `--transform-for-static-hosting` to produce archives publishable to
   GitHub Pages.
 
 ## What's inside
 
-The catalog (`Sources/Presentation/Documentation.docc/`) is organized as:
+The **Presentation** catalog:
 
 | Article | Covers |
 |---------|--------|
-| **Presentation** (landing) | The two ideas — Clean Architecture + MVI — and the module graph |
-| **Clean Architecture and the Dependency Rule** | Layers, the compiler-enforced dependency rule, Domain and Data |
+| **Presentation** (landing) | The two ideas — Clean Architecture + MVI — and the module graph (including the Wireframe package) |
+| **Clean Architecture and the Dependency Rule** | Layers, the compiler-enforced dependency rule, the SwiftData `@Model` entity trade-off, Domain and Data |
 | **The MVI Loop** | `State` / `Intent` / `Store`, `@Query` as the Model, bindings, previews |
-| **Navigation** | Flows (policy) vs the Router (mechanism), route values, nested & multiplied wireframes, the session gate |
-| **The Composition Root** | Wiring concrete types to protocols; concurrency choices |
+| **Navigation** | Flows (policy) vs the Router (mechanism), route values, nested & multiplied wireframes, the session gate, deep links |
+| **The Composition Root** | Wiring concrete types to protocols; concurrency choices (main-actor by default) |
 | **Testing Strategy** | Layer-by-layer testing with Swift Testing |
+
+The **Wireframe** catalog:
+
+| Article | Covers |
+|---------|--------|
+| **Wireframe** (landing) | What the kit is: the `Store` contract, intent-based value routing, nesting wireframes, the session gate |
+| **Adopting Wireframe in an App** | The four-move recipe (routes → registry → wireframes → flows), why routes are values, testing against the router |
 
 To have an AI agent replicate this pattern for a different app, see
 [AGENT_GUIDE.md](AGENT_GUIDE.md), which is kept in the repo root because its

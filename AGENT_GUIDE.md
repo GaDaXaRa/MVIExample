@@ -2,31 +2,49 @@
 
 Instructions for an AI coding agent asked to scaffold a **new** iOS app using the
 same architecture as this repository: Clean Architecture (Domain / Data /
-Presentation) with MVI (Model-View-Intent) as the per-screen pattern, in Swift and
-SwiftUI, using async/await, actors, and the Observation framework. Read this file
-top to bottom before writing any code; it is a recipe, not a reference to copy files
-from.
+Presentation) with MVI (Model-View-Intent) as the per-screen pattern, SwiftData as
+the single source of truth, and the reusable **Wireframe** package for navigation —
+in Swift 6.2, SwiftUI, async/await and the Observation framework. Read this file
+top to bottom before writing any code; it is a recipe, not a reference to copy
+files from.
 
 Do not just copy this repository's `User`/list-detail-modal sample — rebuild the
 same *structure* around whatever domain the user actually asked for.
 
 ## 1. Non-negotiable constraints
 
-- **Language/UI**: Swift 6, SwiftUI only (no UIKit unless the user asks).
+- **Language/UI**: Swift 6.2, SwiftUI only (no UIKit unless the user asks).
 - **State observation**: the `Observation` framework (`@Observable`), never
   `ObservableObject` + `@Published`.
-- **Concurrency**: `async/await` at every layer boundary; `actor` for any shared
-  mutable state (in-memory caches, mock data sources); `Sendable` on every type or
-  protocol that crosses an `await` boundary; `@MainActor` on every Store and Router.
+- **Concurrency**: main-actor **by default** — every target sets
+  `.defaultIsolation(MainActor.self)` (SE-0466), so stores, routers, flows and
+  the repository contracts carry no `@MainActor` annotations. Concurrency is
+  opt-in and explicit: `actor` for a real boundary (the remote data source),
+  `nonisolated` for inert values that must cross isolation (DTOs, `Route`
+  conformers). `async/await` at every layer boundary.
+- **Persistence/model**: **SwiftData**. The Domain entity is a `@Model` class —
+  one type is simultaneously the schema, the persisted row, the observable object
+  views react to, and the navigation payload. Views read collections with
+  `@Query`; the repository exposes **mutations plus at most a point read** (for
+  deep links), never list reads.
+- **Navigation**: the **Wireframe** package (see §5). Never hand-roll
+  `NavigationStack` state inside features; destination views must be
+  presentation-agnostic.
 - **Testing**: the **Swift Testing** framework (`import Testing`, `@Test`,
   `#expect`), not XCTest, unless the user explicitly asks for XCTest.
-- **Package layout**: a single Swift Package with `Domain`, `Data`, `Presentation`,
-  and `App` targets, wired exactly as in §3. This is what makes the Dependency Rule
-  compiler-enforced instead of a convention someone can silently break.
+- **Package layout**: the domain-agnostic kit lives in its own local SPM package
+  (`Wireframe/`); the app is a second package with `Domain`, `Data`,
+  `Presentation` targets plus an XcodeGen-generated `App` target, wired exactly
+  as in §3/§6. This is what makes the Dependency Rule compiler-enforced instead
+  of a convention someone can silently break.
+- **Localization**: a String Catalog (`Localizable.xcstrings`) in the App target.
+  SwiftUI text in package views resolves from `Bundle.main` automatically; only
+  Domain error messages need `String(localized:)` and runtime keys need
+  `LocalizedStringKey(...)`.
 - **Brevity**: keep every file small and single-purpose. One feature's `State` +
-  `Intent` + `Store` belong in one file (`<Feature>Feature.swift`); its view in a
-  sibling `<Feature>View.swift`. Do not add abstractions (generic repositories,
-  event buses, DI frameworks) the current feature set doesn't need.
+  `Intent` + `Store` (+ its `Route` and `Flow` protocol) belong in one file
+  (`<Feature>Feature.swift`); its view in a sibling `<Feature>View.swift`. Do
+  not add abstractions the current feature set doesn't need.
 - **English**: all code, comments, and docs in English regardless of the
   conversation language.
 
@@ -34,127 +52,166 @@ same *structure* around whatever domain the user actually asked for.
 
 If the user hasn't specified them, ask directly rather than guessing:
 - What is the app's domain/subject (to-do list, expenses, recipes, ...)?
-- How many screens, and which navigation is push vs. modal?
-- Does it need real networking, or is a mocked/in-memory data source acceptable for
-  a sample? (Real backends need real error handling, auth, pagination — say so if
+- How many screens; which are pushed, which are modal; tabs or single stack?
+- Is there a session/login gate? Deep links? Which languages?
+- Does it need real networking, or is a mocked/in-memory remote acceptable for a
+  sample? (Real backends need real error handling, auth, pagination — say so if
   the user wants that; don't silently under- or over-build.)
 
-## 3. Package.swift skeleton
+## 3. Package skeleton
+
+Bring the **Wireframe** package along unchanged — copy this repository's
+`Wireframe/` directory into the new repo (or depend on it remotely if it has
+been published). It is domain-agnostic by construction and needs no edits.
+
+The app package:
 
 ```swift
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 import PackageDescription
+
+let mainActorByDefault: [SwiftSetting] = [.defaultIsolation(MainActor.self)]
 
 let package = Package(
     name: "<AppName>",
-    platforms: [.iOS(.v17), .macOS(.v14)], // macOS target lets `swift build`/`swift test` run without a simulator
+    platforms: [.iOS(.v17), .macOS(.v14)], // macOS lets `swift build`/`swift test` run without a simulator
     products: [
         .library(name: "Domain", targets: ["Domain"]),
         .library(name: "Data", targets: ["Data"]),
         .library(name: "Presentation", targets: ["Presentation"])
     ],
+    dependencies: [
+        .package(path: "Wireframe")
+    ],
     targets: [
-        .target(name: "Domain"),
-        .target(name: "Data", dependencies: ["Domain"]),
-        .target(name: "Presentation", dependencies: ["Domain"]),          // never depends on Data
-        .testTarget(name: "DomainTests", dependencies: ["Domain"]),
-        .testTarget(name: "DataTests", dependencies: ["Data", "Domain"]),
-        .testTarget(name: "PresentationTests", dependencies: ["Presentation", "Domain"])
+        .target(name: "Domain", swiftSettings: mainActorByDefault),
+        .target(name: "Data", dependencies: ["Domain"], swiftSettings: mainActorByDefault),
+        .target(
+            name: "Presentation", // never depends on Data
+            dependencies: ["Domain", .product(name: "Wireframe", package: "Wireframe")],
+            swiftSettings: mainActorByDefault
+        ),
+        .testTarget(name: "DomainTests", dependencies: ["Domain"], swiftSettings: mainActorByDefault),
+        .testTarget(name: "DataTests", dependencies: ["Data", "Domain"], swiftSettings: mainActorByDefault),
+        .testTarget(
+            name: "PresentationTests",
+            dependencies: ["Presentation", "Domain", .product(name: "Wireframe", package: "Wireframe")],
+            swiftSettings: mainActorByDefault
+        )
     ]
 )
 ```
 
-Add `.macOS(.v14)` even though the target is an iOS app: it lets `swift build` /
-`swift test` run on any machine without booting a simulator, which is how you (the
-agent) verify Domain/Data/Presentation. Guard any UIKit-only SwiftUI modifier
-(`.keyboardType`, `.textInputAutocapitalization`, ...) with `#if os(iOS)` so the
-macOS build target still compiles.
-
-Do **not** add a fourth `executableTarget` for the app itself — see §6. The `App`
-target that actually runs on a simulator is declared separately, in `project.yml`,
-and depends on this package's three library products.
+Guard any UIKit-only SwiftUI modifier (`.keyboardType`,
+`.textInputAutocapitalization`, ...) with `#if os(iOS)` so the macOS build still
+compiles. Do **not** add an `executableTarget` for the app itself — see §6.
 
 ## 4. Build order (follow this sequence; don't jump ahead)
 
-1. **Domain first, always.** Entities (plain `Sendable` `Equatable` `Codable`
-   structs) → repository protocols (`Sendable`, `async throws` methods only) → use
-   case protocols + `Default...` structs. A use case that just forwards to the
-   repository is fine; add real logic (validation, combining calls) only where the
-   business actually requires it — don't invent rules the user didn't ask for.
-2. **Data second.** DTOs (`internal`, `Codable`, with `toDomain()`) → data source
-   protocols + `actor` implementations (mock/in-memory is fine for a sample; say so
-   in the README) → a repository struct implementing the Domain protocol, composing
-   the data sources. Keep DTOs and data sources `internal` — only the repository
-   type (or a `static func live()` factory on it) needs to be `public`.
+1. **Domain first, always.**
+   - The entity is a `@Model final class` (public `var`s, a `private(set)`
+     stable `id: UUID`). Relationships need care: a self-referential or
+     to-many relationship must declare its **inverse** with
+     `@Relationship(deleteRule: .nullify, inverse: ...)` so deletes clean up
+     referrers automatically.
+   - The repository protocol is main-actor (the module default — no annotation)
+     and covers **mutations only** (`refresh`, `add`, `set...`, `remove`) plus
+     at most one point read (`entity(id:)`) for deep-link resolution. No list
+     reads: views observe with `@Query`.
+   - Use case protocols + `Default...` structs. A pass-through use case is
+     fine; put real invariants (validation, no-self-relation, idempotence)
+     here — they must hold regardless of caller.
+2. **Data second.** A `nonisolated` DTO (`Codable`, `Sendable`) and a
+   `nonisolated protocol` remote data source implemented by an `actor` (this is
+   the app's one real concurrency boundary; only Sendable DTOs cross it). The
+   repository works directly on SwiftData's `ModelContext` (`container.mainContext`);
+   refresh **upserts** by stable id — the mock remote must return **fixed UUIDs**
+   or every launch duplicates the seed rows in the persisted store. Never let a
+   remote refresh clobber locally-set flags.
 3. **Presentation third**, per feature, one `<Feature>Feature.swift` containing:
-   - `State: Equatable, Sendable` — everything the view reads, nothing else.
-   - `Intent` — every user action and lifecycle event as an enum case.
-   - `@Observable @MainActor final class <Feature>Store: Store` — constructor
-     takes use case protocols (never the repository, never Data types) plus an
-     `AppRouter` if the feature navigates. `send(_:)` is synchronous; async work is
-     wrapped in `Task { }`.
-   Also build once, shared across features: `Core/Store.swift` (the
-   `Store<State, Intent>` protocol) and `Core/AppRouter.swift` (see §5).
-4. **App fourth.** `CompositionRoot` (wires concrete Data types to Domain protocols,
-   one `make<Feature>Store` factory per feature) and the `@main App` struct
-   (`@State private var router = AppRouter()`, builds the root view from
-   `CompositionRoot`) in `Sources/App`, plus the `project.yml` that turns those
-   files into a real, simulator-runnable Xcode target (see §6).
+   - `nonisolated struct <Feature>Route: Route` if the screen is reachable from
+     another one (routes are inert values; `nonisolated` keeps their synthesized
+     `Hashable` out of the main actor).
+   - `protocol <Feature>Flow` — the semantic events the store reports
+     (`didSelectItem(_:)`, `didFinish()`), in domain language, never
+     destinations. Give rarely-wired events default no-op implementations.
+   - `State` (transient UI state only — loading/error; **not** the model data,
+     which `@Query` provides) + `Intent` + `@Observable final class
+     <Feature>Store: Store` whose `send(_:)` is synchronous (async work wrapped
+     in `Task { }`). Data mutations call use cases directly; navigation-ish
+     events go to the flow.
+   - The view in `<Feature>View.swift`: owns its store via
+     `@State private var store: any Store<State, Intent>`
+     (`State(initialValue:)` in init), reads collections via `@Query`, sends
+     intents, and uses `store.binding(_:send:)` for form fields. If one view
+     serves several contexts, model the chrome/data variance as a
+     `<Feature>Mode` enum with associated values (invalid combinations
+     unrepresentable) and let the injected flow vary the behavior.
+   Concrete flows live in `Presentation/Flows/` — a flow may know several
+   features (knitting screens together is its job); features never know each
+   other.
+4. **App fourth.** `CompositionRoot` + `RootView` + the `@main` App struct in
+   `Sources/App` (see §7), plus the `project.yml` that turns those files into a
+   real, simulator-runnable Xcode target (see §6), plus the
+   `Localizable.xcstrings` String Catalog.
 5. **Tests alongside each layer**, not at the end — write the test target for a
    layer right after building it, per §8.
 
-## 5. Navigation recipe
+## 5. Navigation recipe (the Wireframe kit)
 
-Keep navigation out of every feature's `State`, and keep every destination view
-presentation-agnostic. Three pieces (all in `Presentation/Core`):
+The kit provides `Store`, `PreviewStore`, `Route`/`AnyRoute`,
+`Router`/`RouterIntent`/`AppRouter`, `AlertContent`, `WireframeView`,
+`DestinationRegistry` and `SessionStore`. Read its DocC article *Adopting
+Wireframe in an App* for details. The shape:
 
-- **`Route` values**: each feature declares a `nonisolated struct <Feature>Route:
-  Route` saying *what* to show, never *how*.
-- **`DestinationRegistry`**: the composition root registers each route type with
-  the view that renders it, exactly once. Presentation mode is not part of the
-  registration.
-- **`WireframeView`**: the superior view owning the `NavigationStack`, the sheet
-  and the fullscreen cover. It resolves any route through the registry in any
-  presentation mode, and wraps modal contents in their own `NavigationStack`.
+- **Route values** describe *what* to show; ``RouterIntent`` picks *how*
+  (`push`/`sheet`/`present`/`alert`/`pop`/`popTo`/`dismiss`). The destination
+  view never knows its presentation mode and must not contain a
+  `NavigationStack` or dismiss logic of its own.
+- **`DestinationRegistry`**: the composition root registers each route type
+  with its view exactly once; builders receive the presenting wireframe's
+  router.
+- **`WireframeView`** wraps each root screen (each tab). Modals become child
+  wireframes automatically; `dismiss` bubbles up the parent chain.
+- **Stores never talk to the Router directly** — they report semantic events to
+  their flow; the flow translates to router intents. Store tests use a flow
+  spy; route/mode assertions live in flow tests.
+- **Session gate**: keep `AppRouter`s in the composition root and switch
+  `RootView` on `SessionStore.isAuthenticated` — navigation state then survives
+  a session expiry and is restored on re-login.
+- **Deep links**: parse the URL into a value enum (`DeepLink(url:)`), then a
+  small coordinator resolves ids through the one repository point read and
+  sends **the same route values** in-app flows use to the target tab's router.
+  A link arriving while logged out is held pending and applied on login.
+  Register the URL scheme in `project.yml` (see §6).
 
-Stores never talk to the `Router` directly. Each feature owns a **flow protocol**
-in domain language (`<Feature>Flow` with methods like `didSelectUser(_:)`,
-`didFinish()`): the store reports semantic events, and a concrete flow (in
-`Presentation/Flows/`, injected by the composition root) decides what comes next
-and how — `router.send(.push(SomeRoute(...)))` / `.sheet(...)` / `.present(...)`.
-The **flow** picks the presentation mode; the destination view never knows which
-one was used and must not contain a `NavigationStack` or dismiss logic of its
-own. This is what lets the same feature navigate differently per context: inject
-a different flow, touch nothing else. The task must include at least one push
-and one modal — if the user's feature list doesn't naturally produce both, add a
-minimal second screen/modal that does (e.g. an "About" sheet, or a settings row)
-rather than skipping the requirement.
+The task must include at least one push and one modal — if the user's feature
+list doesn't naturally produce both, add a minimal second screen/modal that
+does rather than skipping the requirement.
 
 ## 6. The App target: generate it with XcodeGen, don't hand-author a `.xcodeproj`
 
-`Sources/App` (the `@main` App struct and `CompositionRoot`) needs to become a real
-Xcode "iOS App" target to be installable and runnable on a simulator — an SPM
-`executableTarget` compiles against the iOS Simulator SDK but never produces an
-installable `.app` bundle (no Info.plist generation tied to an app product, no code
-signing for an app product type, etc.). Do not attempt to hand-write a
-`.xcodeproj`/`pbxproj` file yourself; it is a fragile, undocumented binary-ish
-format and easy to corrupt. Instead:
+`Sources/App` needs to become a real Xcode "iOS App" target to be installable
+and runnable on a simulator — an SPM `executableTarget` compiles against the
+iOS Simulator SDK but never produces an installable `.app` bundle. Do not
+attempt to hand-write a `.xcodeproj`; use [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+(`which xcodegen`; `brew install xcodegen` if missing — and if Homebrew itself
+is broken, ask the user to fix it rather than working around it).
 
-1. Check for [XcodeGen](https://github.com/yonaskolb/XcodeGen): `which xcodegen`.
-   If missing and Homebrew is available and working, `brew install xcodegen`. If
-   Homebrew itself is broken (common after a macOS upgrade until the user updates
-   it), ask the user to update/fix Homebrew rather than working around it.
-2. Write `project.yml` at the repository root:
+`project.yml` at the repository root:
 
 ```yaml
 name: <AppName>
 options:
   bundleIdPrefix: com.example
+  developmentLanguage: en
   deploymentTarget:
     iOS: "17.0"
 packages:
   <AppName>Kit:
     path: .
+  Wireframe:
+    path: Wireframe
 targets:
   App:
     type: application
@@ -169,89 +226,130 @@ targets:
         product: Data
       - package: <AppName>Kit
         product: Presentation
+      - package: Wireframe
+        product: Wireframe
+    # Explicit Info.plist (generated by XcodeGen) rather than
+    # GENERATE_INFOPLIST_FILE: array keys like CFBundleURLTypes (deep links)
+    # don't fit scalar INFOPLIST_KEY_ settings.
+    info:
+      path: Sources/App/Info.plist
+      properties:
+        CFBundleDisplayName: <App Name>
+        CFBundleLocalizations: [en, es]
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        CFBundleURLTypes:
+          - CFBundleURLName: com.example.<appname>
+            CFBundleURLSchemes: [<appscheme>]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.<appname>
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
         SWIFT_VERSION: "6.0"
 ```
 
-3. Run `xcodegen generate` to produce `<AppName>.xcodeproj`. Do **not** commit the
-   generated project — gitignore `*.xcodeproj/` and commit `project.yml` instead,
-   so the project can never drift from the package and is regenerated on demand.
-4. Remove any `executableTarget`/`.executable` product named `App` from
-   `Package.swift` if one exists (see §3) — a native Xcode target and an SPM
-   executable product sharing the name `App` in the same workspace is a naming
-   collision waiting to happen, and only one of them can actually run on a
-   simulator.
+Run `xcodegen generate`. Do **not** commit the generated project or the
+generated `Info.plist` — gitignore `*.xcodeproj/` and `Sources/App/Info.plist`,
+commit `project.yml`, regenerate on demand.
 
-Verify the result end to end rather than assuming the config is right:
+Verify end to end rather than assuming the config is right:
 
 ```bash
-xcodebuild build -project <AppName>.xcodeproj -scheme App -destination 'id=<simulator-udid>'
-xcrun simctl boot <simulator-udid>              # if not already booted
-xcrun simctl install <simulator-udid> <DerivedData path from the build log>/<AppName>.app
-xcrun simctl launch <simulator-udid> com.example.<appname>
-xcrun simctl io <simulator-udid> screenshot /tmp/screenshot.png
+xcodebuild build -project <AppName>.xcodeproj -scheme App -destination 'platform=iOS Simulator,name=<device>'
+xcrun simctl install <device> <path to built .app>
+xcrun simctl launch <device> com.example.<appname>
+xcrun simctl io <device> screenshot /tmp/screenshot.png   # read the image back
+xcrun simctl openurl <device> "<appscheme>://..."         # deep-link smoke test
 ```
 
-Read the screenshot back (e.g. with a file-reading tool that can view images) to
-confirm the UI actually rendered — a launch with no crash is not proof the screen
-looks right. `xcrun simctl` has no built-in tap/touch injection, so exercising push
-and modal navigation via taps from an agent generally isn't possible without extra
-tooling (Accessibility-permissioned UI scripting, or a UI test target); rely on the
-unit tests from §8 to cover navigation logic, and be explicit in the README about
-what was and wasn't verified through the simulator versus through tests.
+A launch with no crash is not proof the screen looks right — read the
+screenshot. `simctl` has no tap injection, so navigation flows are covered by
+the unit tests of §8; be explicit in the README about what was verified via
+simulator versus via tests. Note that a SwiftData **schema change that isn't a
+lightweight migration** (e.g. to-one → to-many) requires
+`xcrun simctl uninstall` before reinstalling, or the app crashes on the stale
+store.
 
 ## 7. Composition Root recipe
 
-One `struct CompositionRoot` in the `App` target — the only file allowed to import
-`Domain`, `Data`, and `Presentation` together:
+One `struct CompositionRoot` in the `App` target — the only file allowed to
+import `Domain`, `Data`, and `Presentation` together. It owns:
+
+- the `ModelContainer` (exposed so the App attaches `.modelContainer` — `@Query`
+  and the repository must share it),
+- the `SessionStore`, the `DestinationRegistry`, the tabs (each an id + icon +
+  its own `AppRouter`), and a deep-link coordinator if the app has links,
+- the route → view registrations (each builder receives the presenting router
+  and injects a concrete flow), and one `make<Feature>Store` factory per root
+  screen.
 
 ```swift
-@MainActor
 struct CompositionRoot {
-    private let repository: SomeRepository = DefaultSomeRepository.live()
-    func make<Feature>Store(router: AppRouter) -> <Feature>Store {
-        <Feature>Store(someUseCase: DefaultSomeUseCase(repository: repository), router: router)
+    let modelContainer: ModelContainer
+    let session = SessionStore()
+    let registry = DestinationRegistry()
+    let tabs = [AppTab(id: "Browse", systemImage: "person.3"), ...]
+    private let repository: SomeRepository
+
+    init() {
+        modelContainer = try! ModelContainer(for: Item.self)
+        let repository = DefaultSomeRepository.live(context: modelContainer.mainContext)
+        self.repository = repository
+        registry.register(ItemDetailRoute.self) { route, router in
+            ItemDetailView(store: ItemDetailStore(
+                item: route.item,
+                someUseCase: DefaultSomeUseCase(repository: repository),
+                flow: SomeFlow(router: router)
+            ))
+        }
+        // ... one registration per reachable screen
     }
 }
 ```
 
-If a change made in one feature must show up in another (e.g. a favorite toggled
-in the detail screen, a user added from the modal form), don't wire callbacks
-between stores. SwiftData is the single source of truth: entities are `@Model`
-classes, mutations go through intents → store → use case → repository →
-`ModelContext`, and any screen that keeps that data visible reads it with
-`@Query`, which re-renders automatically on any change. One source of truth, zero
-cross-feature coupling — and no streams, Combine, NotificationCenter, or event
-bus either.
+`RootView` switches on `session.isAuthenticated` between the login screen and a
+`TabView` of `WireframeView`s, and forwards `onOpenURL` to the deep-link
+coordinator.
+
+If a change made in one feature must show up in another (a flag toggled in a
+detail screen, an item added from a modal, a relation set by a picker), don't
+wire callbacks between stores. SwiftData is the single source of truth:
+mutations go intent → store → use case → repository → `ModelContext`, and any
+screen keeping that data visible reads it with `@Query` (or renders the
+observable `@Model` object directly), which re-renders automatically. One
+source of truth, zero cross-feature coupling — no streams, Combine,
+NotificationCenter, or event bus.
 
 ## 8. Testing recipe
 
-Mirror the module graph — one test target per source target, each faking only the
-layer directly below it, never the real implementation two layers down:
+Mirror the module graph — one test target per source target, each faking only
+the layer directly below it (the Wireframe kit brings its own tests; don't
+re-test it):
 
-- **DomainTests** fake the repository protocol (an `actor FakeXRepository:
-  XRepository`, since the protocol requires `Sendable` and tests call it from async
-  contexts). Test business rules: validation, error propagation, pass-through
-  behavior.
-- **DataTests** fake the data source protocol(s), use the *real* repository
-  implementation and the *real* local-store actor. Test merge/caching policy: does
-  a locally-set flag survive a refetch, is sorting correct, does a missing id throw.
-- **PresentationTests** fake every use case protocol directly (plain structs with a
-  `resultToReturn`/`errorToThrow` property are enough — no repository involved).
-  Test that each `Intent` produces the right `State` transition and the right
-  `AppRouter` call. `@MainActor` the test suite since Stores are `@MainActor`.
+- **DomainTests** fake the repository protocol. The protocol is main-actor, so
+  the fake is a plain `final class FakeXRepository: XRepository` with recording
+  properties — no `actor`, no `Sendable` gymnastics. Test business rules:
+  validation, invariants, error propagation.
+- **DataTests** use the *real* repository over an **in-memory SwiftData stack**
+  and a fake remote. Two hard-won rules: the helper must return the
+  `ModelContainer` itself and tests must keep it alive (`mainContext` does not
+  retain its container — a deallocated one leaves the context dangling and
+  crashes), and the suite must be `.serialized` (concurrent `ModelContainer`
+  creation for the same schema crashes intermittently). Test upsert/merge
+  policy, relationship integrity on delete, the point read.
+- **PresentationTests** fake every use case protocol (plain final classes with
+  `errorToThrow`/recording properties) and **spy the flows**. Store tests
+  assert semantic events reached the spy (`flow.selectedItems == [item]`) and
+  state transitions; **flow tests** assert the resulting router intents against
+  a real `AppRouter` (including child-router `dismiss` bubbling). Views own
+  `#Preview`s backed by `PreviewStore`.
 
-Because `send(_:)` kicks off `Task { }` and returns immediately, tests need to wait
-for the async work to land. Add one small shared helper instead of `Task.sleep` in
-every test:
+Because `send(_:)` kicks off `Task { }` and returns immediately, tests need to
+wait for async work. One small shared helper instead of `Task.sleep` in every
+test:
 
 ```swift
-@MainActor
 func waitUntil(timeout: Duration = .seconds(1), _ condition: () -> Bool) async throws {
     let deadline = ContinuousClock.now + timeout
     while !condition(), ContinuousClock.now < deadline {
@@ -260,73 +358,73 @@ func waitUntil(timeout: Duration = .seconds(1), _ condition: () -> Bool) async t
 }
 ```
 
-Poll on a condition that is only true *after* the async work completes (e.g.
-`!state.users.isEmpty`), never on something like `isLoading == false` that can
-already be true before the work even starts — that race produces flaky green tests
-that pass for the wrong reason.
+Poll on a condition that is only true *after* the async work completes, never
+on something that can already be true before it starts — that race produces
+flaky green tests that pass for the wrong reason. Beware vacuous tests: a
+remove-test whose fake never stored the item "passes" against a no-op
+implementation; pre-populate and assert the actual change.
 
-Use `#expect(throws: SomeError.self)` for the type-only check; use `#expect(throws:
+Use `#expect(throws: SomeError.self)` for the type-only check; `#expect(throws:
 someValue)` only when the error type is `Equatable`.
 
 ## 9. Verifying your own work (do this before reporting done)
 
 ```bash
-swift build          # compiles Domain/Data/Presentation for macOS — fast inner-loop check
-swift test           # runs every test target with Swift Testing
+swift build          # compiles the app package for macOS — fast inner-loop check
+swift test           # app-package tests
+(cd Wireframe && swift test)   # kit tests
 ```
 
-If a full Xcode installation is available (check with `xcodebuild -version`; on
-some machines only Command Line Tools are active even though Xcode.app is
-installed — try `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-xcodebuild -version`), also compile against a real iOS Simulator SDK to catch
-iOS-only API usage that a macOS-only `swift build` can't:
+The `import Testing` module is only available through a full Xcode toolchain,
+not bare Command Line Tools — if `swift test` fails with "no such module
+'Testing'", retry with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`
+rather than switching the machine's default toolchain (a system-wide change you
+should not make without asking).
 
-```bash
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-  xcodebuild build -project <AppName>.xcodeproj -scheme App -destination 'id=<simulator-udid>'
-# list available simulators/udids with:
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun simctl list devices available
-```
-
-Note the `import Testing` module is only available through a full Xcode toolchain,
-not bare Command Line Tools — if `swift test` fails with "no such module 'Testing'",
-check `xcode-select -p` and retry with `DEVELOPER_DIR` pointed at Xcode.app as
-above, rather than switching the machine's default toolchain (which is a
-system-wide change you should not make without asking).
-
-Once XcodeGen has produced `<AppName>.xcodeproj` (§6), that same `xcodebuild`
-invocation produces a real, installable `<AppName>.app` — install and launch it with
-`xcrun simctl install`/`launch` and screenshot it with `xcrun simctl io ... screenshot`
-to confirm it actually renders (§6) before telling the user it runs on the
-simulator. Don't claim the app launches successfully without having actually
-launched and screenshotted it in the same session.
+Then the real-app pass of §6: `xcodegen generate` → `xcodebuild` against a
+simulator destination → install → launch → screenshot → read the screenshot.
+Don't claim the app launches without having launched and screenshotted it in
+the same session.
 
 ## 10. Documentation to produce alongside the code
 
-Every replication of this architecture should also produce:
-- **README.md** — what the sample app does, project/module layout, how to build
-  and test it, how to open it in Xcode.
-- **ARCHITECTURE.md** — the same kind of walkthrough as this repository's
-  `ARCHITECTURE.md`: explain Domain/Data/Presentation and the Dependency Rule, then
-  MVI (Model/Intent/Store loop) with real snippets from the files you just wrote,
-  then navigation-as-a-side-effect, then the composition root, then concurrency
-  choices, then the testing strategy. Pull code excerpts from the actual generated
-  files, not from this guide.
-- This file itself, if the user wants to replicate the pattern *again* later —
-  otherwise it's optional for a one-off app.
+- **README.md** — what the app does, project/module layout, how to build, test
+  and open it.
+- **DocC catalogs**, not a monolithic markdown: a `Documentation.docc` in the
+  Presentation target explaining this app's architecture (layers, MVI loop,
+  navigation, composition, testing) with `` ``SymbolLinks`` `` to real types,
+  and the Wireframe package ships its own. Add `swift-docc-plugin` to each
+  package so `swift package generate-documentation --target <T>` works, and
+  regenerate after doc edits: symbol links only warn at doc-build time, so an
+  unchecked catalog rots silently. Types from *other* modules are plain code
+  spans, not symbol links — cross-target links don't resolve.
+- **ARCHITECTURE.md** — a short pointer at the repo root (GitHub can't render
+  DocC): how to read the catalogs plus an article index.
 
 ## 11. Common mistakes to avoid
 
-- Putting navigation state inside a feature's `State` instead of `AppRouter`.
-- Letting `Presentation` depend on `Data` "just this once" — it breaks the whole
-  point of the module graph; add a use case instead.
-- Doing async work directly inside `send(_:)` instead of wrapping it in `Task { }`
-  — this makes `send` async and defeats the synchronous View → Store call contract.
-- Using `ObservableObject`/`@Published` — this is a Clean/MVI-with-Observation
-  project; use `@Observable`.
-- Writing repository/use-case fakes as plain classes with `var` properties when the
-  protocol requires `Sendable` — use an `actor` fake, or a `struct`/`final class ...
-  @unchecked Sendable` only when you're certain the test never mutates it
-  concurrently.
+- Putting navigation state (or the `@Query`-provided model data) inside a
+  feature's `State`.
+- Letting `Presentation` depend on `Data` "just this once" — add a use case
+  instead. Same for editing the Wireframe kit to know about an app type: the
+  kit stays domain-agnostic, full stop.
+- Stores picking destinations (`router.send(.push(...))` from a store) — that
+  is the flow's job; the store reports events.
+- Doing async work directly inside `send(_:)` instead of wrapping it in
+  `Task { }` — and conversely, wrapping *synchronous* local mutations
+  (SwiftData writes) in needless `Task`s or swallowing their errors with
+  `try?`; surface failures in `state.errorMessage`.
+- Adding `@MainActor`/`Sendable` annotations everywhere out of habit — the
+  targets are main-actor by default; annotations are reserved for the explicit
+  boundaries (`actor` remote, `nonisolated` DTOs and routes).
+- Forgetting `nonisolated` on `Route` conformers (their synthesized `Hashable`
+  then crosses isolation and fails to compile) or the `@Relationship` inverse
+  on self-referential/to-many relations (deletes then leave dangling
+  references).
+- Random seed UUIDs in the mock remote — the store is persisted; every launch
+  duplicates the rows.
+- In tests: not retaining the `ModelContainer`, non-`.serialized` SwiftData
+  suites, and vacuous assertions (see §8).
+- Using `ObservableObject`/`@Published` — this is an Observation project.
 - Forgetting `#if os(iOS)` around UIKit-bridged SwiftUI modifiers, breaking the
   macOS sanity build.

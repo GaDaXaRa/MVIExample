@@ -10,6 +10,11 @@ let package = Package(
     products: [
         .library(name: "Wireframe", targets: ["Wireframe"])
     ],
+    dependencies: [
+        // Enables `swift package generate-documentation` for the kit's DocC
+        // catalog. Build/test don't need it.
+        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.3")
+    ],
     targets: [
         .target(
             name: "Wireframe",
