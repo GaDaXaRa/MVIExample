@@ -54,15 +54,18 @@ struct UserFlowsTests {
         #expect(parent.presentedCover == nil)
     }
 
-    @Test("RelatedUserFlow opens the related-users list as a sheet")
-    func relatedUserFlowOpensList() {
-        let router = AppRouter()
-        let sut = RelatedUserFlow(router: router)
-        let user = User(name: "Ada Lovelace", email: "ada@example.com")
+    @Test("RelatedUserFlow opens the list when there are relations, the editor when there are none")
+    func relatedUserFlowOpensListOrEditor() {
+        let withRelations = User(name: "Ada Lovelace", email: "ada@example.com")
+        withRelations.related = [User(name: "Alan Turing", email: "alan@example.com")]
+        let router1 = AppRouter()
+        RelatedUserFlow(router: router1).didRequestManageRelated(for: withRelations)
+        #expect(router1.presentedSheet == AnyRoute(ManageRelatedRoute(target: withRelations)))
 
-        sut.didRequestManageRelated(for: user)
-
-        #expect(router.presentedSheet == AnyRoute(ManageRelatedRoute(target: user)))
+        let noRelations = User(name: "Grace Hopper", email: "grace@example.com")
+        let router2 = AppRouter()
+        RelatedUserFlow(router: router2).didRequestManageRelated(for: noRelations)
+        #expect(router2.presentedSheet == AnyRoute(SelectRelatedRoute(target: noRelations)))
     }
 
     @Test("RelatedListFlow opens the editor on add, inspects a related user, and dismisses")

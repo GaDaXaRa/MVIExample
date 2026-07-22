@@ -67,6 +67,7 @@ public enum UserListIntent {
     case endSessionTapped
     case cancelTapped
     case remove(User)
+    case removeRelated(User, from: User)
 }
 
 // MARK: - Store
@@ -77,11 +78,18 @@ public final class UserListStore: Store {
 
     private let refreshUsers: RefreshUsersUseCase
     private let removeUser: RemoveUserUseCase
+    private let removeRelated: RemoveRelatedUserUseCase
     private let flow: any UserListFlow
 
-    public init(refreshUsers: RefreshUsersUseCase, removeUser: RemoveUserUseCase, flow: any UserListFlow) {
+    public init(
+        refreshUsers: RefreshUsersUseCase,
+        removeUser: RemoveUserUseCase,
+        removeRelated: RemoveRelatedUserUseCase,
+        flow: any UserListFlow
+    ) {
         self.refreshUsers = refreshUsers
         self.removeUser = removeUser
+        self.removeRelated = removeRelated
         self.flow = flow
     }
 
@@ -104,6 +112,12 @@ public final class UserListStore: Store {
         case .remove(let user):
             do {
                 try removeUser.execute(user: user)
+            } catch {
+                state.errorMessage = error.localizedDescription
+            }
+        case .removeRelated(let user, let fromUser):
+            do {
+                try removeRelated.execute(user, from: fromUser)
             } catch {
                 state.errorMessage = error.localizedDescription
             }
