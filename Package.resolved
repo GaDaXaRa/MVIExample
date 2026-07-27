@@ -1,5 +1,5 @@
 {
-  "originHash" : "2dfd522366b79175341e8cd00d02008ae1d1eb02628a6321b2013bf56b7741e3",
+  "originHash" : "0300b5d954fa4a52d6fe903dd952dbc02d82640fd0495b7d11d7d6319e0bab68",
   "pins" : [
     {
       "identity" : "swift-docc-plugin",
@@ -16,6 +16,15 @@
       "location" : "https://github.com/swiftlang/swift-docc-symbolkit",
       "state" : {
         "revision" : "b45d1f2ed151d057b54504d653e0da5552844e34",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "swift-wireframe",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/GaDaXaRa/swift-wireframe.git",
+      "state" : {
+        "revision" : "d14e15ada2edc4cc6d95a364e0f49c8238191671",
         "version" : "1.0.0"
       }
     }

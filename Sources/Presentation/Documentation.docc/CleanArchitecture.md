@@ -5,8 +5,8 @@ How the code is layered, and why the compiler — not a convention — enforces 
 ## Overview
 
 The app-specific code is one Swift Package with three library targets, plus a
-native Xcode App target; the domain-agnostic core is a **separate local package**,
-`Wireframe`:
+native Xcode App target; the domain-agnostic core is a **separate package in its
+own repository**, `Wireframe`, consumed as a versioned dependency:
 
 ```
 Wireframe (pkg)   ← MVI + navigation kit, knows no app entities
@@ -24,13 +24,14 @@ is a build error. **The Dependency Rule is a build setting, not a promise.**
 // Package.swift
 .target(name: "Domain"),
 .target(name: "Data", dependencies: ["Domain"]),
-.target(name: "Presentation", dependencies: ["Domain", .product(name: "Wireframe", package: "Wireframe")]),
+.target(name: "Presentation", dependencies: ["Domain", .product(name: "Wireframe", package: "swift-wireframe")]),
 ```
 
 `Wireframe` being a *separate package* (not just another target) is deliberate:
 a target could still be made to depend on an app target, but a separate package
 has a one-way dependency by construction — the kit can never reach into `Domain`
-or a feature. It only depends on SwiftUI/Observation, so it drops into any app.
+or a feature. It only depends on SwiftUI/Observation, so it drops into any app,
+which is why it now lives in its own repository and is versioned independently.
 
 `App` (`Sources/App`) is *not* a package target: an SPM `executableTarget` cannot
 produce an installable `.app` bundle. Instead `project.yml` declares it as a real

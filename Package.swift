@@ -16,9 +16,9 @@ let package = Package(
         .library(name: "Presentation", targets: ["Presentation"])
     ],
     dependencies: [
-        // The domain-agnostic MVI + Wireframe kit, a separate local package so
-        // it can't reach back into any app layer and could be reused as-is.
-        .package(path: "Wireframe"),
+        // The domain-agnostic MVI + Wireframe kit, published as its own package
+        // so it can't reach back into any app layer and is reusable as-is.
+        .package(url: "https://github.com/GaDaXaRa/swift-wireframe.git", from: "1.0.0"),
         // Enables `swift package generate-documentation` for the Presentation
         // DocC catalog (the canonical architecture docs). Build/test don't need
         // it; it only powers the docs command and Pages publishing.
@@ -34,7 +34,7 @@ let package = Package(
         // MARK: - Presentation (MVI features on the Wireframe kit). Depends on Domain + Wireframe, never on Data.
         .target(
             name: "Presentation",
-            dependencies: ["Domain", .product(name: "Wireframe", package: "Wireframe")],
+            dependencies: ["Domain", .product(name: "Wireframe", package: "swift-wireframe")],
             swiftSettings: mainActorByDefault
         ),
 
@@ -46,7 +46,7 @@ let package = Package(
         .testTarget(name: "DataTests", dependencies: ["Data", "Domain"], swiftSettings: mainActorByDefault),
         .testTarget(
             name: "PresentationTests",
-            dependencies: ["Presentation", "Domain", .product(name: "Wireframe", package: "Wireframe")],
+            dependencies: ["Presentation", "Domain", .product(name: "Wireframe", package: "swift-wireframe")],
             swiftSettings: mainActorByDefault
         )
     ]

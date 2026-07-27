@@ -9,7 +9,8 @@ packages:
   MVIExampleKit:
     path: .
   Wireframe:
-    path: Wireframe
+    url: https://github.com/GaDaXaRa/swift-wireframe.git
+    from: 1.0.0
 
 targets:
   App:
