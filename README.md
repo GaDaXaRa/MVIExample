@@ -32,7 +32,7 @@ delay) so the sample runs with no backend and no configuration.
 ## Project layout
 
 ```
-Wireframe/       domain-agnostic MVI + navigation kit             (its own SPM package)
+Wireframe/       domain-agnostic MVI + navigation kit             (its own SPM package — see its README)
 Package.swift    Domain, Data, Presentation libraries + their test targets
 project.yml      XcodeGen spec for the native iOS App target
 Sources/
