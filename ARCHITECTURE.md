@@ -45,6 +45,14 @@ The **Wireframe** catalog:
 | **Wireframe** (landing) | What the kit is: the `Store` contract, intent-based value routing, nesting wireframes, the session gate |
 | **Adopting Wireframe in an App** | The four-move recipe (routes → registry → wireframes → flows), why routes are values, testing against the router |
 
+## Why it is this way
+
+The catalogs describe how the system works *today*. The **why** — the
+alternatives that were considered and lost, and what each choice costs — lives
+in [Architecture Decision Records](docs/adr/README.md): the SwiftData `@Model`
+trade-off, routes as values instead of view builders, flows versus the router,
+extracting the Wireframe package, and the rest.
+
 To have an AI agent replicate this pattern for a different app, see
 [AGENT_GUIDE.md](AGENT_GUIDE.md), which is kept in the repo root because its
 audience is tooling that reads the repository, not Xcode.
