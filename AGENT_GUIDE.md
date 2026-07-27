@@ -32,8 +32,9 @@ same *structure* around whatever domain the user actually asked for.
   presentation-agnostic.
 - **Testing**: the **Swift Testing** framework (`import Testing`, `@Test`,
   `#expect`), not XCTest, unless the user explicitly asks for XCTest.
-- **Package layout**: the domain-agnostic kit lives in its own local SPM package
-  (`Wireframe/`); the app is a second package with `Domain`, `Data`,
+- **Package layout**: the domain-agnostic kit is a published SPM package
+  ([swift-wireframe](https://github.com/GaDaXaRa/swift-wireframe)); the app is
+  its own package with `Domain`, `Data`,
   `Presentation` targets plus an XcodeGen-generated `App` target, wired exactly
   as in §3/§6. This is what makes the Dependency Rule compiler-enforced instead
   of a convention someone can silently break.
@@ -60,9 +61,11 @@ If the user hasn't specified them, ask directly rather than guessing:
 
 ## 3. Package skeleton
 
-Bring the **Wireframe** package along unchanged — copy this repository's
-`Wireframe/` directory into the new repo (or depend on it remotely if it has
-been published). It is domain-agnostic by construction and needs no edits.
+Depend on the published **Wireframe** package
+([GaDaXaRa/swift-wireframe](https://github.com/GaDaXaRa/swift-wireframe)) — it is
+domain-agnostic by construction and needs no edits. Note the package identity
+SPM derives from the URL is `swift-wireframe`, while the module it vends is
+`Wireframe`.
 
 The app package:
 
@@ -81,21 +84,21 @@ let package = Package(
         .library(name: "Presentation", targets: ["Presentation"])
     ],
     dependencies: [
-        .package(path: "Wireframe")
+        .package(url: "https://github.com/GaDaXaRa/swift-wireframe.git", from: "1.0.0")
     ],
     targets: [
         .target(name: "Domain", swiftSettings: mainActorByDefault),
         .target(name: "Data", dependencies: ["Domain"], swiftSettings: mainActorByDefault),
         .target(
             name: "Presentation", // never depends on Data
-            dependencies: ["Domain", .product(name: "Wireframe", package: "Wireframe")],
+            dependencies: ["Domain", .product(name: "Wireframe", package: "swift-wireframe")],
             swiftSettings: mainActorByDefault
         ),
         .testTarget(name: "DomainTests", dependencies: ["Domain"], swiftSettings: mainActorByDefault),
         .testTarget(name: "DataTests", dependencies: ["Data", "Domain"], swiftSettings: mainActorByDefault),
         .testTarget(
             name: "PresentationTests",
-            dependencies: ["Presentation", "Domain", .product(name: "Wireframe", package: "Wireframe")],
+            dependencies: ["Presentation", "Domain", .product(name: "Wireframe", package: "swift-wireframe")],
             swiftSettings: mainActorByDefault
         )
     ]
@@ -211,7 +214,8 @@ packages:
   <AppName>Kit:
     path: .
   Wireframe:
-    path: Wireframe
+    url: https://github.com/GaDaXaRa/swift-wireframe.git
+    from: 1.0.0
 targets:
   App:
     type: application
@@ -372,7 +376,6 @@ someValue)` only when the error type is `Equatable`.
 ```bash
 swift build          # compiles the app package for macOS — fast inner-loop check
 swift test           # app-package tests
-(cd Wireframe && swift test)   # kit tests
 ```
 
 The `import Testing` module is only available through a full Xcode toolchain,

@@ -32,7 +32,8 @@ delay) so the sample runs with no backend and no configuration.
 ## Project layout
 
 ```
-Wireframe/       domain-agnostic MVI + navigation kit             (its own SPM package — see its README)
+                 (the domain-agnostic MVI + navigation kit lives in its own
+                  repository: github.com/GaDaXaRa/swift-wireframe)
 Package.swift    Domain, Data, Presentation libraries + their test targets
 project.yml      XcodeGen spec for the native iOS App target
 Sources/

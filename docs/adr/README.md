@@ -26,5 +26,6 @@ choices are just code.
 | [0010](0010-many-to-many-related-users.md) | Many-to-many related users with a declared inverse | accepted |
 | [0011](0011-extract-wireframe-as-its-own-package.md) | Extract the domain-agnostic core into its own package | accepted |
 | [0012](0012-docc-catalogs-over-monolithic-markdown.md) | DocC catalogs instead of one architecture markdown | accepted |
+| [0013](0013-consume-wireframe-as-a-remote-package.md) | Consume Wireframe as a remote package from its own repository | accepted |
 
 New records start from [the template](0000-template.md).
